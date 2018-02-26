@@ -1,0 +1,54 @@
+#ifndef __TWITCHXP_H
+#define __TWITCHXP_H
+
+// dialog
+#define IDD_DLG     100
+
+// icon
+#define IDI_ICN     1
+
+// control
+#define IDC_CHANNEL 100
+#define IDC_PUT_LNK 101
+#define IDC_GET_LNK 102
+#define IDC_QUALITY 103
+#define IDC_PLAY_IT 104
+#define IDC_SAVE_IT 105
+#define IDC_PL_SYST 106
+#define IDC_PL_CUST 107
+#define IDC_PL_LINE 108
+#define IDC_PL_BRWS 109
+#define IDC_PL_HIDE 110
+#define IDC_SITELNK 111
+
+#define IDC_FIRSTID 100
+
+// string
+#define IDS_MSK_M3U 1
+#define IDS_MSK_EXE 2
+#define IDS_MSK_ANY 3
+
+#define IDS_FMT_INFOLINK 4
+#define IDS_FMT_LISTLINK 5
+
+#define IDS_MSG_INVALID 6
+#define IDS_MSG_CHANNEL 7
+#define IDS_MSG_FORMATS 8
+#define IDS_MSG_NOTPLAY 9
+#define IDS_MSG_NOTSLCT 10
+#define IDS_MSG_YOUSURE 11
+
+#define IDS_TTT_FIRSTID 12
+// ToolTipText
+#define IDS_TTT_CHANNEL (IDS_TTT_FIRSTID + 0)
+#define IDS_TTT_PUT_LNK (IDS_TTT_FIRSTID + 1)
+#define IDS_TTT_GET_LNK (IDS_TTT_FIRSTID + 2)
+#define IDS_TTT_QUALITY (IDS_TTT_FIRSTID + 3)
+#define IDS_TTT_PLAY_IT (IDS_TTT_FIRSTID + 4)
+#define IDS_TTT_SAVE_IT (IDS_TTT_FIRSTID + 5)
+#define IDS_TTT_PL_LINE (IDS_TTT_FIRSTID + 8)
+#define IDS_TTT_PL_BRWS (IDS_TTT_FIRSTID + 9)
+#define IDS_TTT_PL_HIDE (IDS_TTT_FIRSTID + 10)
+#define IDS_TTT_SITELNK (IDS_TTT_FIRSTID + 11)
+
+#endif

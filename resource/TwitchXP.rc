@@ -1,0 +1,97 @@
+#undef RC_INVOKED
+#include <commctrl.h>
+#define RC_INVOKED 1
+#include <windows.h>
+#include <richedit.h>
+#include "TwitchXP.h"
+
+#ifndef IDC_STATIC
+#define IDC_STATIC (-1)
+#endif
+
+IDI_ICN ICON "TwitchXP.ico"
+1 24 "Manifest.xml"
+
+#define R_CAPTION "TwitchXP"
+#define R_VERSION "1.0"
+#define R_INTNAME "TwitchXP"
+
+1 VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILETYPE 1
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "SysTools"
+      VALUE "FileDescription", R_CAPTION
+      VALUE "FileVersion", R_VERSION
+      VALUE "LegalCopyright", "\xA9 SysTools 2018"
+      VALUE "OriginalFilename", R_INTNAME ".exe"
+      VALUE "InternalName", R_INTNAME
+      VALUE "ProductName", R_CAPTION
+      VALUE "ProductVersion", R_VERSION
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END
+
+IDD_DLG DIALOG 0, 0, 260, 154
+STYLE DS_3DLOOK | DS_CENTER | DS_MODALFRAME | DS_SHELLFONT | WS_CAPTION | WS_VISIBLE | WS_GROUP | WS_POPUP | WS_SYSMENU
+CAPTION R_CAPTION " v" R_VERSION
+FONT 8, "Ms Shell Dlg"
+BEGIN
+  LTEXT           "Twitch channel link or name (example: https://twitch.tv/gamesdonequick)", IDC_STATIC, 7, 7, 234, 9
+  EDITTEXT        IDC_CHANNEL, 7, 17, 185, 14, ES_AUTOHSCROLL
+  PUSHBUTTON      "Put", IDC_PUT_LNK, 197, 17, 25, 14
+  PUSHBUTTON      "Get", IDC_GET_LNK, 227, 17, 25, 14
+  LTEXT           "Playback quality", IDC_STATIC, 7, 39, 52, 9
+  COMBOBOX        IDC_QUALITY, 67, 37, 125, 20, WS_TABSTOP | CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | CBS_NOINTEGRALHEIGHT
+  PUSHBUTTON      "Play", IDC_PLAY_IT, 197, 37, 55, 14
+  PUSHBUTTON      "Save playlist...", IDC_SAVE_IT, 197, 57, 55, 14
+  AUTORADIOBUTTON "Use default system player", IDC_PL_SYST, 7, 57, 96, 8, WS_GROUP
+  AUTORADIOBUTTON "Use custom player below", IDC_PL_CUST, 7, 67, 95, 8
+  EDITTEXT        IDC_PL_LINE, 7, 77, 185, 14, ES_AUTOHSCROLL
+  PUSHBUTTON      "Browse...", IDC_PL_BRWS, 197, 77, 55, 14
+  AUTOCHECKBOX    "Hide player console window (for ffplay, mplayer, etc.)", IDC_PL_HIDE, 7, 97, 181, 8
+  PUSHBUTTON      "Exit", IDCANCEL, 197, 97, 55, 14
+  LTEXT           "\xA9 SysTools 2018 | http://systools.losthost.org/?misc", IDC_SITELNK, 7, 117, 166, 8, SS_OWNERDRAW | SS_NOTIFY
+  LTEXT           "Custom software development for your business or personal usage.\nContact for more details.", IDC_STATIC, 7, 127, 210, 17
+END
+
+STRINGTABLE
+BEGIN
+  IDS_MSK_M3U "M3U Playlist (*.m3u)|*.m3u|"
+  IDS_MSK_EXE "Executable files|*.exe;*.cmd;*.bat;*.com|"
+  IDS_MSK_ANY "All Files (*.*)|*.*|"
+  // this client_id taken from the original Twitch.tv player file:
+  // https://player.twitch.tv/vendor/TwitchPlayer.7cfe0f2e9d071ac72c5a539139bcedd4.swf
+  IDS_FMT_INFOLINK "http://api.twitch.tv/api/channels/%s/access_token?client_id=rp5xf0lwwskmtt1nyuee68mgd0hthrw"
+  IDS_FMT_LISTLINK "http://usher.twitch.tv/api/channel/hls/%s.m3u8?player=twitchweb&token=%s&sig=%s&allow_audio_only=true&allow_source=true&type=any&p=%lu"
+
+  IDS_MSG_INVALID "Invalid channel name."
+  IDS_MSG_CHANNEL "Network error or incorrect channel name."
+  IDS_MSG_FORMATS "Incorrect playlist format, check if that channel actually streaming right now."
+  IDS_MSG_NOTPLAY "Can not retrive video player path."
+  IDS_MSG_NOTSLCT "Playback quality must be selected first."
+  IDS_MSG_YOUSURE "Warning!\n\n"\
+                  "If you hide window for non-console application you may not be able to close it normally.\n"\
+                  "In that case end its task via system Task Manager available by Ctrl+Shift+Esc hotkey.\n\n"\
+                  "Are you sure you want to enable this feature?\n"
+  // ToolTipText (80 chars max: 79 + null)
+  IDS_TTT_CHANNEL "Enter Twitch.tv link or channel name here"
+  IDS_TTT_PUT_LNK "Put text from the clipboard"
+  IDS_TTT_GET_LNK "Get channel playlist"
+  IDS_TTT_QUALITY "Select video quality here"
+  IDS_TTT_PLAY_IT "Play selected quality stream"
+  IDS_TTT_SAVE_IT "Save the whole playlist to a .M3U file"
+  IDS_TTT_PL_LINE "Commandline for custom video player (stream URL will be added as last argument)"
+  IDS_TTT_PL_BRWS "Browse for custom video player executable file"
+  IDS_TTT_PL_HIDE "Hides custom player console window (usually first window)"
+  IDS_TTT_SITELNK "Visit developer homepage"
+END
