@@ -285,8 +285,15 @@ DWORD sz;
               result[*len] = 0;
             }
           } else {
+            // v1.1
             // Windows XP, TLS not enabled in Internet Explorer
-            *len = ((GetLastError() == ERROR_INTERNET_CONNECTION_RESET) && (uc.nScheme == INTERNET_SCHEME_HTTPS)) ? 1 : 0;
+            if (uc.nScheme == INTERNET_SCHEME_HTTPS) {
+              *len = GetLastError();
+              *len = (
+                (*len == ERROR_INTERNET_CANNOT_CONNECT) ||
+                (*len == ERROR_INTERNET_CONNECTION_RESET)
+              ) ? 1 : 0;
+            }
           }
           InternetCloseHandle(hReq);
         }

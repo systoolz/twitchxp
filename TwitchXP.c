@@ -112,11 +112,15 @@ DWORD i;
   return(s);
 }
 
+// v1.1
+#define BUF_MAX 612
+#define SIG_MAX 41
+#define SIG_POS (BUF_MAX - SIG_MAX)
 // short and simply to understand code for Twitch.tv protocol can be found here:
 // https://github.com/systoolz/miscsoft/blob/master/twitchtv.php
 CCHAR *TwitchPlayList(TCHAR *name) {
-CCHAR *r, p[512];
-TCHAR *s, t[512], b[1024];
+CCHAR *r, p[BUF_MAX];
+TCHAR *s, t[BUF_MAX], b[1024];
 DWORD i;
   r = NULL;
   // sanity check
@@ -127,29 +131,33 @@ DWORD i;
       wsprintf(b, s, name);
       FreeMem(s);
       // get channel information
+      i = 0;
       r = (CCHAR *) HTTPGetContent(b, &i);
       *b = 0;
       if (r) {
-        // length + zero 424 + 1 (+ some more)
-        JSONParser(r, "\"token\"", p, 512 - 51);
+        // length + zero: LEN + 1 (+ some more)
+        JSONParser(r, "\"token\"", p, SIG_POS);
         // length + zero: 40 + 1
-        JSONParser(r, "\"sig\"", &p[512 - 51], 51);
-        // both parameters found (+ some more)
-        if (p[0] && p[512 - 51]) {
+        JSONParser(r, "\"sig\"", &p[SIG_POS], SIG_MAX);
+        // both parameters found
+        if (p[0] && p[SIG_POS]) {
           s = LangLoadString(IDS_FMT_LISTLINK);
           if (s) {
             // lazy UTF-8 to ANSI/Unicode conversion
-            for (i = 0; i < 512; i++) {
+            for (i = 0; i < BUF_MAX; i++) {
               t[i] = p[i];
             }
-            wsprintf(b, s, name, t, &t[512 - 51], GetTickCount());
+            wsprintf(b, s, name, t, &t[SIG_POS], GetTickCount());
             FreeMem(s);
           }
         }
         FreeMem(r);
+        // get channel playlist
+        r = *b ? ((CCHAR *) HTTPGetContent(b, &i)) : NULL;
+      } else {
+        // v1.1
+        r = (i == 1) ? ((TCHAR *) 1) : NULL;
       }
-      // get channel playlist
-      r = *b ? ((CCHAR *) HTTPGetContent(b, &i)) : NULL;
     } // infolink
   } // sanity
   return(r);
@@ -225,6 +233,11 @@ DWORD result;
 int i;
   result = 1; // error load http data
   r = TwitchPlayList(s);
+  // v1.1
+  if (r == ((TCHAR *) 1)) {
+    r = NULL;
+    result = 3;
+  }
   if (r) {
     result = 2; // invalid playlist format
     p = r;

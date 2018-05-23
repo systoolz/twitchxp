@@ -13,12 +13,12 @@ IDI_ICN ICON "TwitchXP.ico"
 1 24 "Manifest.xml"
 
 #define R_CAPTION "TwitchXP"
-#define R_VERSION "1.0"
+#define R_VERSION "1.1"
 #define R_INTNAME "TwitchXP"
 
 1 VERSIONINFO
-FILEVERSION 1,0,0,0
-PRODUCTVERSION 1,0,0,0
+FILEVERSION 1,1,0,0
+PRODUCTVERSION 1,1,0,0
 FILETYPE 1
 BEGIN
   BLOCK "StringFileInfo"
@@ -71,12 +71,14 @@ BEGIN
   IDS_MSK_ANY "All Files (*.*)|*.*|"
   // this client_id taken from the original Twitch.tv player file:
   // https://player.twitch.tv/vendor/TwitchPlayer.7cfe0f2e9d071ac72c5a539139bcedd4.swf
-  IDS_FMT_INFOLINK "http://api.twitch.tv/api/channels/%s/access_token?client_id=rp5xf0lwwskmtt1nyuee68mgd0hthrw"
-  IDS_FMT_LISTLINK "http://usher.twitch.tv/api/channel/hls/%s.m3u8?player=twitchweb&token=%s&sig=%s&allow_audio_only=true&allow_source=true&type=any&p=%lu"
+  IDS_FMT_INFOLINK "https://api.twitch.tv/api/channels/%s/access_token?client_id=rp5xf0lwwskmtt1nyuee68mgd0hthrw"
+  IDS_FMT_LISTLINK "https://usher.twitch.tv/api/channel/hls/%s.m3u8?player=twitchweb&token=%s&sig=%s&allow_audio_only=true&allow_source=true&type=any&p=%lu"
 
   IDS_MSG_INVALID "Invalid channel name."
   IDS_MSG_CHANNEL "Network error or incorrect channel name."
   IDS_MSG_FORMATS "Incorrect playlist format, check if that channel actually streaming right now."
+  IDS_MSG_NEEDTLS "You'll need to enable TLS support to connect!\n"\
+                  "Start -> Settings -> Control Panel -> Internet Options -> Advanced -> Security -> Use TLS 1.0"
   IDS_MSG_NOTPLAY "Can not retrive video player path."
   IDS_MSG_NOTSLCT "Playback quality must be selected first."
   IDS_MSG_YOUSURE "Warning!\n\n"\

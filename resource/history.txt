@@ -1,0 +1,7 @@
+v1.1 [2018.05.23]
+- switched from HTTP to HTTPS requests
+- increased playlist parser buffer size
+- added warning for Windows XP users to enable TLS support
+
+v1.0 [2018.02.21]
+- first publice release
