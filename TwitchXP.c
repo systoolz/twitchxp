@@ -112,16 +112,13 @@ DWORD i;
   return(s);
 }
 
-// v1.1
-#define BUF_MAX 612
-#define SIG_MAX 41
-#define SIG_POS (BUF_MAX - SIG_MAX)
 // short and simply to understand code for Twitch.tv protocol can be found here:
 // https://github.com/systoolz/miscsoft/blob/master/twitchtv.php
+// max def stack size: 3984
 CCHAR *TwitchPlayList(TCHAR *name) {
-CCHAR *r, p[BUF_MAX];
-TCHAR *s, t[BUF_MAX], b[1024];
-DWORD i;
+CCHAR *r, *p;
+TCHAR *s, *w, b[1024];
+DWORD i, j, k;
   r = NULL;
   // sanity check
   if (name && *name) {
@@ -135,28 +132,38 @@ DWORD i;
       r = (CCHAR *) HTTPGetContent(b, &i);
       *b = 0;
       if (r) {
-        // length + zero: LEN + 1 (+ some more)
-        JSONParser(r, "\"token\"", p, SIG_POS);
-        // length + zero: 40 + 1
-        JSONParser(r, "\"sig\"", &p[SIG_POS], SIG_MAX);
-        // both parameters found
-        if (p[0] && p[SIG_POS]) {
-          s = LangLoadString(IDS_FMT_LISTLINK);
-          if (s) {
-            // lazy UTF-8 to ANSI/Unicode conversion
-            for (i = 0; i < BUF_MAX; i++) {
-              t[i] = p[i];
+        i++;
+        p = (CCHAR *) GetMem(i);
+        w = (TCHAR *) GetMem(i * sizeof(b[0]));
+        // memory allocated
+        if (p && w) {
+          // get token
+          JSONParser(r, "\"token\"", p, i);
+          k = lstrlenA(p);
+          // get signature
+          JSONParser(r, "\"sig\"", &p[k + 1], i - (k + 1));
+          // both parameters found
+          if (k && p[0] && p[k + 1]) {
+            // merge to single string
+            s = LangLoadString(IDS_FMT_LISTLINK);
+            if (s) {
+              // lazy UTF-8 to ANSI/Unicode conversion
+              for (j = 0; j < i; j++) {
+                w[j] = p[j];
+              }
+              wsprintf(b, s, name, w, &w[k + 1], GetTickCount());
+              FreeMem(s);
             }
-            wsprintf(b, s, name, t, &t[SIG_POS], GetTickCount());
-            FreeMem(s);
           }
         }
+        if (w) { FreeMem(w); }
+        if (p) { FreeMem(p); }
         FreeMem(r);
         // get channel playlist
         r = *b ? ((CCHAR *) HTTPGetContent(b, &i)) : NULL;
       } else {
         // v1.1
-        r = (i == 1) ? ((TCHAR *) 1) : NULL;
+        r = (i == 1) ? ((CCHAR *) 1) : NULL;
       }
     } // infolink
   } // sanity
@@ -234,7 +241,7 @@ int i;
   result = 1; // error load http data
   r = TwitchPlayList(s);
   // v1.1
-  if (r == ((TCHAR *) 1)) {
+  if (r == ((CCHAR *) 1)) {
     r = NULL;
     result = 3;
   }
@@ -433,6 +440,36 @@ HWND httw;
   }
 }
 
+// v1.2
+void TryToAutoPlay(HWND wnd) {
+HWND wh;
+  wh = GetDlgItem(wnd, IDC_QUALITY);
+  // window enabled
+  if (IsWindowEnabled(wh)) {
+    // something selected
+    if (SendMessage(wh, CB_GETCURSEL, 0, 0) >= 0) {
+      // click play
+      PostMessage(wnd, WM_COMMAND, MAKELONG(IDC_PLAY_IT, BN_CLICKED), 0);
+    } else {
+      // else set focus here to select quality
+      SetFocus(wh);
+    }
+  }
+}
+
+// v1.2
+void ItemsState(HWND wnd, WORD *items, BOOL state) {
+  if (items) {
+    for (; *items; items++) {
+      DialogEnableWindow(wnd, *items, state);
+    }
+  }
+}
+
+// v1.2
+static WORD MainItems[4] = {IDC_QUALITY, IDC_PLAY_IT, IDC_SAVE_IT, 0};
+static WORD PlayItems[4] = {IDC_PL_LINE, IDC_PL_BRWS, IDC_PL_HIDE, 0};
+
 BOOL CALLBACK DlgPrc(HWND wnd, UINT msg, WPARAM wparm, LPARAM lparm) {
 DRAWITEMSTRUCT *dis;
 BOOL result;
@@ -447,9 +484,7 @@ DWORD i;
       // fix combobox height
       AdjustComboBoxHeight(GetDlgItem(wnd, IDC_QUALITY), 10);
       // disable controls
-      DialogEnableWindow(wnd, IDC_QUALITY, FALSE);
-      DialogEnableWindow(wnd, IDC_PLAY_IT, FALSE);
-      DialogEnableWindow(wnd, IDC_SAVE_IT, FALSE);
+      ItemsState(wnd, MainItems, FALSE);
       // load settings (also sets radiogroup)
       SettingsHandler(wnd, FALSE);
       // create hints
@@ -460,6 +495,19 @@ DWORD i;
     case WM_COMMAND:
       if (HIWORD(wparm) == BN_CLICKED) {
         switch (LOWORD(wparm)) {
+          // v1.2
+          case IDOK:
+            // only if focus on the channel edit control
+            if (GetFocus() == GetDlgItem(wnd, IDC_CHANNEL)) {
+              // flag for autoplay
+              PutWndData(wnd, (void *) 1);
+              // click Get
+              PostMessage(wnd, WM_COMMAND, MAKELONG(IDC_GET_LNK, BN_CLICKED), 0);
+            } else {
+              // try to play
+              TryToAutoPlay(wnd);
+            }
+            break;
           // exit from program
           case IDCANCEL:
             // save settings
@@ -472,21 +520,32 @@ DWORD i;
             // end dialog
             EndDialog(wnd, 0);
             break;
+        }
+        // v1.2 - split switch into two parts to avoid generation of long and useless jump table
+        switch (LOWORD(wparm)) {
           case IDC_PUT_LNK:
             // put link from the clipboard
             SendDlgItemMessage(wnd, IDC_CHANNEL, EM_SETSEL, 0, -1);
             SendDlgItemMessage(wnd, IDC_CHANNEL, WM_PASTE, 0, 0);
             break;
           case IDC_GET_LNK:
+            // v1.2 disable buttons from previous run
+            ItemsState(wnd, MainItems, FALSE);
             // get link playlist
             s = GetChannelName(GetDlgItem(wnd, IDC_CHANNEL));
             i = 1;
             if (s) {
               i = LoadTwitchList(GetDlgItem(wnd, IDC_QUALITY), s);
               if (!i) {
-                DialogEnableWindow(wnd, IDC_QUALITY, TRUE);
-                DialogEnableWindow(wnd, IDC_PLAY_IT, TRUE);
-                DialogEnableWindow(wnd, IDC_SAVE_IT, TRUE);
+                // enable controls
+                ItemsState(wnd, MainItems, TRUE);
+                // v1.2 autoplay
+                if ((DWORD)GetWndData(wnd) == 1) {
+                  // remove flag
+                  PutWndData(wnd, NULL);
+                  // try to play
+                  TryToAutoPlay(wnd);
+                }
               } else {
                 i += 1;
               }
@@ -511,9 +570,7 @@ DWORD i;
           case IDC_PL_SYST:
           case IDC_PL_CUST:
             i = (LOWORD(wparm) == IDC_PL_CUST) ? TRUE : FALSE;
-            DialogEnableWindow(wnd, IDC_PL_LINE, i);
-            DialogEnableWindow(wnd, IDC_PL_BRWS, i);
-            DialogEnableWindow(wnd, IDC_PL_HIDE, i);
+            ItemsState(wnd, PlayItems, i);
             break;
           case IDC_PL_BRWS:
             // select external player file

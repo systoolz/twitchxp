@@ -1,3 +1,8 @@
+v1.2 [2018.09.28]
+- dynamic allocated playlist parser buffer - should fix any future issues
+- Enter key in channel link edit control will load channel playlist and play
+- fixed Unicode compiler warnings
+
 v1.1 [2018.05.23]
 - switched from HTTP to HTTPS requests
 - increased playlist parser buffer size
