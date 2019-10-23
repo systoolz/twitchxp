@@ -1,5 +1,7 @@
 #include "SysToolX.h"
 #include <wininet.h>
+// v1.3
+#include <winsock2.h>
 
 void FreeMem(void *block) {
   if (block) {
@@ -205,6 +207,278 @@ RECT rc;
   SetWindowLong(hWndCmbBox, GWL_STYLE, (GetWindowLong(hWndCmbBox, GWL_STYLE) | CBS_NOINTEGRALHEIGHT) ^ CBS_NOINTEGRALHEIGHT);
 }
 
+// ******************************************************************
+// v1.3 - newer SSL support
+// ******************************************************************
+typedef int (*LPSSL_LIBRARY_INIT)(void);
+static LPSSL_LIBRARY_INIT SSL_library_init;
+
+typedef void* (*LPTLSV1_2_CLIENT_METHOD)(void);
+static LPTLSV1_2_CLIENT_METHOD TLSv1_2_client_method;
+
+typedef void* (*LPSSL_CTX_NEW)(void *method);
+static LPSSL_CTX_NEW SSL_CTX_new;
+
+typedef void (*LPSSL_CTX_FREE)(void *ctx);
+static LPSSL_CTX_FREE SSL_CTX_free;
+
+typedef void* (*LPSSL_NEW)(void *ctx);
+static LPSSL_NEW SSL_new;
+
+typedef void (*LPSSL_FREE)(void *ssl);
+static LPSSL_FREE SSL_free;
+
+typedef int (*LPSSL_SET_FD)(void *ssl, int fd);
+static LPSSL_SET_FD SSL_set_fd;
+
+typedef int (*LPSSL_CONNECT)(void *ssl);
+static LPSSL_CONNECT SSL_connect;
+
+typedef int (*LPSSL_READ)(void *ssl, void *buf, int num);
+static LPSSL_READ SSL_read;
+
+typedef int (*LPSSL_WRITE)(void *ssl, const void *buf, int num);
+static LPSSL_WRITE SSL_write;
+
+#pragma pack(push, 1)
+typedef struct {
+  HINSTANCE hls;
+  WSADATA   wsd;
+  void     *ctx;
+  void     *ssl;
+  SOCKET    sck;
+} net_data;
+
+typedef struct {
+  CCHAR *name;
+  DWORD *proc;
+} ssl_func;
+#pragma pack(pop)
+
+static ssl_func ssl_list[] = {
+  {"SSL_library_init",      (DWORD *) &SSL_library_init},
+  {"TLSv1_2_client_method", (DWORD *) &TLSv1_2_client_method},
+  {"SSL_CTX_new",           (DWORD *) &SSL_CTX_new},
+  {"SSL_CTX_free",          (DWORD *) &SSL_CTX_free},
+  {"SSL_new",               (DWORD *) &SSL_new},
+  {"SSL_free",              (DWORD *) &SSL_free},
+  {"SSL_set_fd",            (DWORD *) &SSL_set_fd},
+  {"SSL_connect",           (DWORD *) &SSL_connect},
+  {"SSL_read",              (DWORD *) &SSL_read},
+  {"SSL_write",             (DWORD *) &SSL_write},
+  {NULL, NULL}
+};
+
+void NetInit(net_data *nd) {
+  if (nd) {
+    ZeroMemory(nd, sizeof(nd[0]));
+    nd->sck = INVALID_SOCKET;
+  }
+}
+
+void NetFree(net_data *nd) {
+  if (nd) {
+    if (nd->sck != INVALID_SOCKET) {
+      shutdown(nd->sck, SD_BOTH);
+      closesocket(nd->sck);
+    }
+    if (nd->ssl) {
+      SSL_free(nd->ssl);
+    }
+    if (nd->ctx) {
+      SSL_CTX_free(nd->ctx);
+    }
+    if (nd->wsd.wVersion || nd->wsd.wHighVersion) {
+      WSACleanup();
+    }
+    if (nd->hls) {
+      FreeLibrary(nd->hls);
+    }
+    NetInit(nd);
+  }
+}
+
+DWORD NetWork(net_data *nd, char *host, WORD port) {
+struct sockaddr_in sai;
+HOSTENT *he;
+DWORD i;
+  // input parms
+  if ((!nd) || (!host)) { return(1); }
+  // load funcs
+  nd->hls = LoadLibrary(TEXT("SSLEAY32.dll"));
+  if (!nd->hls) { return(1); }
+  for (i = 0; ssl_list[i].name; i++) {
+    *ssl_list[i].proc = (DWORD) GetProcAddress(nd->hls, ssl_list[i].name);
+    if (!*ssl_list[i].proc) { return(1); }
+  }
+  // WSAStartup
+  if (WSAStartup(MAKEWORD(2, 2), &nd->wsd)) { return(2); }
+  // host address
+  ZeroMemory(&sai, sizeof(sai));
+  sai.sin_addr.s_addr = inet_addr(host);
+  if (sai.sin_addr.s_addr == INADDR_NONE) {
+    he = gethostbyname(host);
+    if (he) {
+      sai.sin_addr.s_addr = *((u_long *) he->h_addr_list[0]);
+    }
+  }
+  if (sai.sin_addr.s_addr == INADDR_NONE) { return(3); }
+  sai.sin_family = AF_INET;
+  sai.sin_port = htons(port);
+  // SSL
+  SSL_library_init();
+  nd->ctx = SSL_CTX_new(TLSv1_2_client_method());
+  if (!nd->ctx) { return(4); }
+  nd->ssl = SSL_new(nd->ctx);
+  if (!nd->ssl) { return(5); }
+  // socket
+  nd->sck = socket(AF_INET, SOCK_STREAM, 0);
+  if (nd->sck == INVALID_SOCKET) { return(6); }
+  // connect
+  if (connect(nd->sck, (struct sockaddr *) &sai, sizeof(sai)) != 0) { return(7); }
+  // set fd
+  if (SSL_set_fd(nd->ssl, nd->sck) != 1) { return(8); }
+  if (SSL_connect(nd->ssl) != 1) { return(9); }
+  return(0);
+}
+
+void StrCatEscape(char *d, DWORD l, char *f, ...) {
+va_list args;
+TCHAR *s, e;
+  if (d && l && f) {
+    va_start(args, f);
+    l--;
+    s = NULL;
+    e = 0;
+    while (*f && l) {
+      if (!s) {
+        if ((*f == '#') || (*f == '$')) {
+          e = (*f == '$') ? 1 : 0;
+          s = va_arg(args, TCHAR *);
+        } else {
+          l--;
+          *d = *f;
+          d++;
+          f++;
+        }
+      } else {
+        if (!*s) {
+          s = NULL;
+          f++;
+        } else {
+          if ((*s == ' ') && e) {
+            if (l < 3) { break; }
+            l -= 3;
+            *d = '%'; d++;
+            *d = '2'; d++;
+            *d = '0'; d++;
+          } else {
+            l--;
+            *d = *s;
+            d++;
+          }
+          s++;
+        }
+      }
+    }
+    va_end(args);
+    *d = 0;
+  }
+}
+
+#define MAX_LEN_SIZE (INTERNET_MAX_HOST_NAME_LENGTH + INTERNET_MAX_PATH_LENGTH + 44 + 1)
+BYTE WINAPI *HTTPSGetContent(TCHAR *url, DWORD *len) {
+char s[MAX_LEN_SIZE];
+URL_COMPONENTS uc;
+BYTE *result, *r;
+net_data nd;
+DWORD sz;
+int l;
+  // init result
+  result = NULL;
+  *len = 0;
+  // prepare URL string
+  ZeroMemory(&uc, sizeof(uc));
+  uc.dwStructSize = sizeof(uc);
+  sz = lstrlen(url);
+  uc.lpszHostName     = STR_ALLOC(sz);
+  uc.dwHostNameLength = sz;
+  uc.lpszUrlPath      = STR_ALLOC(sz);
+  uc.dwUrlPathLength  = sz;
+  // sanity check
+  if (uc.lpszHostName && uc.lpszUrlPath &&
+    InternetCrackUrl(url, sz, 0, &uc) && uc.lpszHostName[0] && uc.lpszUrlPath[0] &&
+    ((uc.nScheme == INTERNET_SCHEME_HTTPS)/* || (uc.nScheme == INTERNET_SCHEME_HTTP)*/)
+  ) {
+    NetInit(&nd);
+    // lazy ANSI to Unicode convert
+    StrCatEscape(s, sz, "#", uc.lpszHostName);
+    if (!NetWork(&nd, s, uc.nPort)) {
+      //InternetCanonicalizeUrl(uc.lpszUrlPath, dest, dest_len, ICU_ENCODE_SPACES_ONLY);
+      StrCatEscape(
+        s, MAX_LEN_SIZE,
+        "GET $ HTTP/1.0\r\nHost: #\r\nConnection: Close\r\n\r\n",
+         uc.lpszUrlPath, uc.lpszHostName
+      );
+      OutputDebugStringA(s);
+      SSL_write(nd.ssl, s, lstrlenA(s));
+      do {
+        l = SSL_read(nd.ssl, s, MAX_LEN_SIZE);
+        if (l) {
+          r = GrowMem(result, *len + l + 1);
+          if (r) {
+            result = r;
+            CopyMemory(&result[*len], s, l);
+          } else {
+            // not enough memory
+            FreeMem(result);
+            result = NULL;
+            *len = 2;
+            break;
+          }
+          *len += l;
+        }
+      } while (l > 0);
+      // add 0 at the end for text buffer data
+      if (result && *len) {
+        result[*len] = 0;
+      }
+      // remove HTTP-headers
+      sz = 0;
+      while ((sz + 3) < *len) {
+        // document body found
+        if (*((DWORD *) &result[sz]) == 0x0A0D0A0D) {
+          l = (sz + 4);
+          sz = l;
+          while (sz < *len) {
+            result[sz - l] = result[sz];
+            sz++;
+          }
+          *len -= l;
+          result[*len] = 0;
+          r = GrowMem(result, *len + 1);
+          if (r) {
+            result = r;
+          } else {
+            FreeMem(result);
+            result = NULL;
+            *len = 2;
+          }
+          break;
+        }
+        sz++;
+      }
+    }
+    NetFree(&nd);
+  }
+  if (uc.lpszUrlPath)  { FreeMem(uc.lpszUrlPath);  }
+  if (uc.lpszHostName) { FreeMem(uc.lpszHostName); }
+  return(result);
+}
+// ******************************************************************
+// ******************************************************************
+// ******************************************************************
+
 // it's not very optimized code but good for small Internet pages
 #define MAX_BLOCK_SIZE 1024
 BYTE *HTTPGetContent(TCHAR *url, DWORD *len) {
@@ -288,11 +562,13 @@ DWORD sz;
             // v1.1
             // Windows XP, TLS not enabled in Internet Explorer
             if (uc.nScheme == INTERNET_SCHEME_HTTPS) {
-              *len = GetLastError();
-              *len = (
-                (*len == ERROR_INTERNET_CANNOT_CONNECT) ||
-                (*len == ERROR_INTERNET_CONNECTION_RESET)
-              ) ? 1 : 0;
+              // v1.3
+              sz = GetLastError();
+              *len = 0;
+              if (
+                (sz == ERROR_INTERNET_CANNOT_CONNECT) || (sz == ERROR_INTERNET_CONNECTION_RESET)
+              ) { *len = 3; }
+              if (sz == ERROR_INTERNET_SECURITY_CHANNEL_ERROR) { *len = 4; } // v1.3
             }
           }
           InternetCloseHandle(hReq);
@@ -300,6 +576,13 @@ DWORD sz;
         InternetCloseHandle(hConn);
       }
       InternetCloseHandle(hOpen);
+    }
+    // v1.3
+    if ((!result) && (uc.nScheme == INTERNET_SCHEME_HTTPS)) {
+      sz = *len;
+      *len = 0;
+      result = HTTPSGetContent(url, len);
+      if (!result) { *len = sz; }
     }
   }
   if (uc.lpszHostName) { FreeMem(uc.lpszHostName); }

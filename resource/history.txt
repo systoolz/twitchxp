@@ -1,3 +1,7 @@
+v1.3 [2019.10.23]
+- fixed work with newer SSL/TLS on older systems like Windows XP;
+  OpenSSL "ssleay32.dll" and "libeay32.dll" files required for that
+
 v1.2 [2018.09.28]
 - dynamic allocated playlist parser buffer - should fix any future issues
 - Enter key in channel link edit control will load channel playlist and play

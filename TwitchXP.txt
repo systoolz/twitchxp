@@ -1,7 +1,7 @@
 TwitchXP
-(c) SysTools 2018
+(c) SysTools 2018-2019
 http://systools.losthost.org/?misc
-version 1.2
+version 1.3
 
 TwitchXP - Windows XP compatible Twitch.tv streams playlist fetcher.
 This tool will help a lot if you still using Windows XP or old hardware which incapable
@@ -15,6 +15,15 @@ You need to know that Twitch.tv uses HLS protocol for streaming:
 https://en.wikipedia.org/wiki/HTTP_Live_Streaming
 Not any video player has HLS support, even less can play it properly and only a few works under Windows XP.
 TwitchXP itself can work even under Windows 98, but you probably didn't find any video player for HLS streams compatible with that system.
+
+Please note that since October 2019 Twitch.tv updates their HTTPS encryption and you may be unable
+to download playlist under Windows XP or older system anymore. In that case you'll need to download
+and place to the same folder with this tool "ssleay32.dll" and "libeay32.dll" files from OpenSSL.
+As example you can get library files here:
+https://indy.fulgan.com/SSL
+Download something like "openssl-1.0.2q-i386-win32.zip" - you'll need an archive with "win32" in name.
+Note that library files from this link locked on system version 5.x which means you
+can't use them under Windows 98 or older (4.x), because you'll need at least Windows 2000.
 
 You can test TwitchXP on any always streaming 24/7 channels:
 https://www.twitch.tv/directory/game/Always%20On

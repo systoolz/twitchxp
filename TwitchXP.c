@@ -163,7 +163,7 @@ DWORD i, j, k;
         r = *b ? ((CCHAR *) HTTPGetContent(b, &i)) : NULL;
       } else {
         // v1.1
-        r = (i == 1) ? ((CCHAR *) 1) : NULL;
+        r = (CCHAR *) i; // v1.3
       }
     } // infolink
   } // sanity
@@ -241,9 +241,9 @@ int i;
   result = 1; // error load http data
   r = TwitchPlayList(s);
   // v1.1
-  if (r == ((CCHAR *) 1)) {
+  if (!HIWORD(r)) {
+    result = LOWORD(r) ? LOWORD(r) : result; // v1.3
     r = NULL;
-    result = 3;
   }
   if (r) {
     result = 2; // invalid playlist format
