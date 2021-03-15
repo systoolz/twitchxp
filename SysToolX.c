@@ -420,7 +420,6 @@ int l;
         "GET $ HTTP/1.0\r\nHost: #\r\nConnection: Close\r\n\r\n",
          uc.lpszUrlPath, uc.lpszHostName
       );
-      OutputDebugStringA(s);
       SSL_write(nd.ssl, s, lstrlenA(s));
       do {
         l = SSL_read(nd.ssl, s, MAX_LEN_SIZE);
@@ -479,13 +478,20 @@ int l;
 // ******************************************************************
 // ******************************************************************
 
+// v1.4
+DWORD WINAPI RequestThreadFunc(LPVOID parm) {
+  *((DWORD *) parm) = HttpSendRequest(*((HINTERNET *) parm), TEXT("Connection: Close"), 17, NULL, 0);
+  return(0);
+}
+
 // it's not very optimized code but good for small Internet pages
 #define MAX_BLOCK_SIZE 1024
 BYTE *HTTPGetContent(TCHAR *url, DWORD *len) {
 HINTERNET hOpen, hConn, hReq;
 URL_COMPONENTS uc;
 BYTE *result, *buf, *r;
-DWORD sz;
+DWORD sz, ti;
+HANDLE ht; // v1.4
   // init result
   result = NULL;
   *len = 0;
@@ -515,10 +521,24 @@ DWORD sz;
           INTERNET_FLAG_NO_UI | INTERNET_FLAG_NO_COOKIES | // INTERNET_FLAG_NO_AUTO_REDIRECT |
           INTERNET_FLAG_NO_CACHE_WRITE | sz, 0);
         if (hReq) {
+          // v1.4 set timeout
+          // note that literally none of InternetSetOption() options for timeout works
+          sz = (DWORD) hReq;
+          ti = 0;
+          ht = CreateThread(NULL, 0, RequestThreadFunc, &sz, 0, &ti);
+          if (ht) {
+            if (WaitForSingleObject(ht, 5000) == WAIT_TIMEOUT) {
+              TerminateThread(ht, 0);
+              CloseHandle(ht);
+              sz = 0;
+            }
+          } else {
+            sz = 0;
+          }
           // HttpSendRequest() didn't work with -1 as dwHeadersLength in Unicode build:
           // GetLastError() == 12150 ERROR_HTTP_HEADER_NOT_FOUND
           // https://msdn.microsoft.com/en-us/library/windows/desktop/aa384247.aspx
-          sz = HttpSendRequest(hReq, TEXT("Connection: Close"), 17, NULL, 0);
+          //sz = HttpSendRequest(hReq, TEXT("Connection: Close"), 17, NULL, 0);
           if (sz) {
             // check for Content-Length
             sz = sizeof(len[0]);

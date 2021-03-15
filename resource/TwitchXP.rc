@@ -13,12 +13,12 @@ IDI_ICN ICON "TwitchXP.ico"
 1 24 "Manifest.xml"
 
 #define R_CAPTION "TwitchXP"
-#define R_VERSION "1.3"
+#define R_VERSION "1.4"
 #define R_INTNAME "TwitchXP"
 
 1 VERSIONINFO
-FILEVERSION 1,3,0,0
-PRODUCTVERSION 1,3,0,0
+FILEVERSION 1,4,0,0
+PRODUCTVERSION 1,4,0,0
 FILETYPE 1
 BEGIN
   BLOCK "StringFileInfo"
@@ -28,7 +28,7 @@ BEGIN
       VALUE "CompanyName", "SysTools"
       VALUE "FileDescription", R_CAPTION
       VALUE "FileVersion", R_VERSION
-      VALUE "LegalCopyright", "\xA9 SysTools 2018-2019"
+      VALUE "LegalCopyright", "\xA9 SysTools 2018-2021"
       VALUE "OriginalFilename", R_INTNAME ".exe"
       VALUE "InternalName", R_INTNAME
       VALUE "ProductName", R_CAPTION
@@ -60,7 +60,7 @@ BEGIN
   PUSHBUTTON      "Browse...", IDC_PL_BRWS, 197, 77, 55, 14
   AUTOCHECKBOX    "Hide player console window (for ffplay, mplayer, etc.)", IDC_PL_HIDE, 7, 97, 181, 8
   PUSHBUTTON      "Exit", IDCANCEL, 197, 97, 55, 14
-  LTEXT           "\xA9 SysTools 2018-2019 | http://systools.losthost.org/?misc", IDC_SITELNK, 7, 117, 184, 8, SS_OWNERDRAW | SS_NOTIFY
+  LTEXT           "\xA9 SysTools 2018-2021 | http://systools.losthost.org/?misc", IDC_SITELNK, 7, 117, 184, 8, SS_OWNERDRAW | SS_NOTIFY
   LTEXT           "Custom software development for your business or personal usage.\nContact for more details.", IDC_STATIC, 7, 127, 210, 17
 END
 

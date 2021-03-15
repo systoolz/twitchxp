@@ -1,7 +1,7 @@
 TwitchXP
-(c) SysTools 2018-2019
+(c) SysTools 2018-2021
 http://systools.losthost.org/?misc
-version 1.3
+version 1.4
 
 TwitchXP - Windows XP compatible Twitch.tv streams playlist fetcher.
 This tool will help a lot if you still using Windows XP or old hardware which incapable
@@ -36,22 +36,19 @@ But if your system player doesn't support HLS protocol or you want another playe
 
 All software mentioned below are freeware.
 
-At the beginning of the 2018 there are at least two HLS-compatible players for Windows XP:
+There are at least two HLS-compatible players for Windows XP:
 
 - VLC
   with GUI, also works under Windows 10
   https://www.videolan.org/vlc/
 
 - ffplay
-  no GUI (console application), works under Windows XP, but has some issues under Windows 10
+  no GUI (console application), works under Windows XP
 
-ffplay version N-78355-g020b758 
-(c) Zeranoe ffmpeg win32 builds 2016
+Most recent ffplay/ffmpeg builds with HLS protocol and Windows XP support available here by Sherpya:
+https://oss.netfarm.it/mplayer/
 
-Almost latest available ffplay/ffmpeg package with the Windows XP support can be downloaded here (13 Mb):
-https://web.archive.org/web/20160220015442if_/http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-20160209-git-020b758-win32-static.7z
-
-You need to download and extract "ffplay.exe" from the archive above to the same folder with the "TwitchXP.exe" file.
+You need to download and extract "ffplay.exe" from the ffmpeg archive to the same folder with the "TwitchXP.exe" file.
 7-Zip file archiver can be downloaded here if you don't have it or don't have any other archiver already installed with the 7z support:
 http://www.7-zip.org/download.html
 
@@ -84,7 +81,7 @@ page down/page up   seek backward/forward 10 minutes
 right mouse click   seek to percentage in file corresponding to fraction of width
 left double-click   toggle full screen
 
-Complete recent ffplay documentation can be found here (note that some options may be not available in mentioned above older build):
+Complete recent ffplay documentation can be found here:
 https://ffmpeg.org/ffplay.html
 
 If your preferred video player requires URL to be the first argument you can use this "playit.bat" file:
@@ -92,3 +89,4 @@ If your preferred video player requires URL to be the first argument you can use
 @start "" player.exe "%~1" -argument2 -argument3 -etc
 
 And just use "playit.bat" (without quotes) as commandline for "custom player" in TwitchXP.
+Replace "-argument2", "-argument3" and "-etc" with any required arguments to the player or remove them if not needed.

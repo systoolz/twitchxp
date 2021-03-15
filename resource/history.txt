@@ -1,3 +1,7 @@
+v1.4 [2021.03.15]
+- fixed hang in HttpSendRequest()
+- updated links for recent version of ffplay in documentation file
+
 v1.3 [2019.10.23]
 - fixed work with newer SSL/TLS on older systems like Windows XP;
   OpenSSL "ssleay32.dll" and "libeay32.dll" files required for that
