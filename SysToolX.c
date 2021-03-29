@@ -529,9 +529,9 @@ HANDLE ht; // v1.4
           if (ht) {
             if (WaitForSingleObject(ht, 5000) == WAIT_TIMEOUT) {
               TerminateThread(ht, 0);
-              CloseHandle(ht);
               sz = 0;
             }
+            CloseHandle(ht);
           } else {
             sz = 0;
           }

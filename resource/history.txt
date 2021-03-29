@@ -1,3 +1,6 @@
+v1.5 [2021.03.29]
+- fixed thread handle leak
+
 v1.4 [2021.03.15]
 - fixed hang in HttpSendRequest()
 - updated links for recent version of ffplay in documentation file
