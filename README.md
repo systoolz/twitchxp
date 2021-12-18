@@ -13,3 +13,5 @@ http://www.softpedia.com/get/Internet/Streaming/TwitchXP.shtml
 Software homepage (you can download binary "TwitchXP.exe" here):
 
 http://systools.losthost.org/?misc#twitchxp
+
+Licensed under the Apache License, Version 2.0 (the "License") - see LICENSE file.
