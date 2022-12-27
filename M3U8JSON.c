@@ -40,8 +40,8 @@ CCHAR x, y;
     while (*s) {
       x = *s;
       y = *b;
-      x ^= ((x >= 'a') && (x <= 'y')) ? 0x20 : 0;
-      y ^= ((y >= 'a') && (y <= 'y')) ? 0x20 : 0;
+      x -= ((x >= 'a') && (x <= 'z')) ? ('a' - 'A') : 0;
+      y -= ((y >= 'a') && (y <= 'z')) ? ('a' - 'A') : 0;
       if (x ^ y) { break; }
       s++;
       b++;
@@ -125,47 +125,83 @@ CCHAR *M3U8Parser(CCHAR *s, CCHAR *f, CCHAR *b, DWORD sz) {
   return(s);
 }
 
+// v1.6 rewrite
+#define COPY2BUF if (d && sz) { *d = *s; d++; sz--; }
 CCHAR *JSONParm(CCHAR *s, CCHAR *d, DWORD sz) {
-int q;
+BYTE t[256];
+int i;
   if (s) {
-    q = (*s == '"') ? 1 : 0;
-    // skip double quote if necessary
-    s += q;
-    while (*s) {
-      if (d && sz) {
-        *d = *s;
-      }
-      if (q) {
-        // quoted character
-        if (*s == '\\') {
-          s++;
-          if (d && sz) {
-            *d = *s;
+    // build table
+    ZeroMemory(t, 256);
+    // stop characters
+    t[0] = 1;
+    t['\t'] = 1;
+    t['\n'] = 1;
+    t['\r'] = 1;
+    t[' '] = 1;
+    t[','] = 1;
+    t[':'] = 1;
+    t['{'] = 1;
+    t['}'] = 1;
+    do {
+      // string
+      if (*s == '"') {
+        s++;
+        while (*s && (*s != '"')) {
+          // quoted character
+          if (*s == '\\') {
+            s++;
           }
-        } else {
-          // value end
-          if (*s == '"') { break; }
+          COPY2BUF;
+          s++;
         }
-      } else {
-        // white space or delims
-        if (
-          (*s == '\t') ||
-          (*s == '\r') ||
-          (*s == '\n') ||
-          (*s == ' ') ||
-          (*s == ',') ||
-          (*s == ':') ||
-          (*s == '}')
-        ) { break; }
+        break;
       }
-      s++;
-      if (d && sz) {
-        d++;
-        sz--;
+      // array
+      if (*s == '{') {
+        i = 0;
+        do {
+          // array
+          if ((*s == '{') || (*s == '}')) {
+            COPY2BUF;
+            i += (*s == '{') ? 1 : (-1);
+            s++;
+            continue;
+          }
+          // string
+          if (*s == '"') {
+            COPY2BUF;
+            s++;
+            while (*s && (*s != '"')) {
+              // quoted character
+              if (*s == '\\') {
+                COPY2BUF;
+                s++;
+              }
+              COPY2BUF;
+              s++;
+            }
+            if (*s) {
+              COPY2BUF;
+              s++;
+            }
+            continue;
+          }
+          // anything else
+          COPY2BUF;
+          s++;
+        } while (*s && (i > 0));
+        break;
       }
-    }
-    // add zero terminator
+      // plain value
+      while (!t[(BYTE) *s]) {
+        COPY2BUF;
+        s++;
+      }
+    } while (1);
+    // tail zero
     if (d) {
+      d -= sz ? 0 : 1;
       *d = 0;
     }
   }
@@ -206,5 +242,86 @@ BOOL m;
         if (*s != ',') { break; }
       }
     }
+  }
+}
+
+// v1.6
+void GetWildMatch(CCHAR *ps, CCHAR *pm, CCHAR *pv, DWORD sz) {
+BYTE t[256], w[256], *s, *m, *v;
+DWORD i, j, k;
+  if (ps && pm && pv && sz) {
+    s = (BYTE *) ps;
+    m = (BYTE *) pm;
+    v = (BYTE *) pv;
+    // case-insensitive compare table
+    for (i = 0; i < 256; i++) {
+      t[i] = i;
+      t[i] -= ((i >= 'a') && (i <= 'z')) ? ('a' - 'A') : 0;
+    }
+    // whitespace table
+    ZeroMemory(w, sizeof(w));
+    w[9] = 1;
+    w[10] = 1;
+    w[13] = 1;
+    w[32] = 1;
+    *v = 0;
+    i = 0;
+    j = 0;
+    k = 0;
+    while (*s) {
+      // whitespace in mask
+      if (w[m[i]]) {
+        // skip in mask
+        while (w[m[i]]) { i++; }
+        // skip in string
+        while (w[s[j]]) { j++; }
+        // next character
+        continue;
+      }
+      // wildchar
+      if (m[i] == '*') {
+        i++;
+        // copy everything till next mask char or string end
+        while ((s[j]) && ((t[s[j]] != t[m[i]]) || ((w[m[i]]) && (!w[s[j]]))) && (k < sz)) {
+          v[k] = s[j];
+          k++;
+          j++;
+        }
+        if (w[m[i]]) { continue; }
+        // mismatch
+        if (t[s[j]] != t[m[i]]) {
+          // move to next char
+          s++;
+          // reset
+          i = 0;
+          j = 0;
+          k = 0;
+          continue;
+        }
+        i++;
+        // found
+        if ((!m[i]) || (k >= sz)) { break; }
+      }
+      // compare characters
+      while (m[i] && (!w[m[i]]) && (m[i] != '*') && (t[s[j]] == t[m[i]])) {
+        i++;
+        j++;
+      }
+      // wildchar or whitespace
+      if ((m[i] == '*') || (w[m[i]])) { continue; }
+      // found
+      if (!m[i]) { break; }
+      // mismatch
+      if ((t[s[j]] != t[m[i]])) {
+        // move to next char
+        s++;
+        // reset
+        i = 0;
+        j = 0;
+        k = 0;
+      }
+    }
+    // tail zero byte
+    v[(k < sz) ? k : (sz - 1)] = 0;
   }
 }

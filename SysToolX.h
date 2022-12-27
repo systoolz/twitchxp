@@ -27,6 +27,6 @@ int MsgBox(HWND wnd, TCHAR *lpText, UINT uType);
 void DialogEnableWindow(HWND hdlg, int idControl, BOOL bEnable);
 void AdjustComboBoxHeight(HWND hWndCmbBox, DWORD MaxVisItems);
 
-BYTE *HTTPGetContent(TCHAR *url, DWORD *len);
+BYTE *HTTPGetContent(CCHAR *url, DWORD *len, CCHAR *head, CCHAR *data);
 
 #endif

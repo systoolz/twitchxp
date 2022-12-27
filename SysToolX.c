@@ -51,6 +51,26 @@ DWORD i, s, e;
   }
 }
 
+// v1.06
+void WINAPIV StrBuild(CCHAR *z, DWORD l, CCHAR *fmt, ...) {
+CCHAR s[1025];
+va_list args;
+DWORD i, j;
+  if (z && l) {
+    l--;
+    i = lstrlenA(z);
+    if (i < l) {
+      va_start(args, fmt);
+      wvsprintfA(s, fmt, args);
+      va_end(args);
+      j = lstrlenA(s);
+      z = &z[i];
+      i = l - i;
+      CopyMemory(z, s, (((i < j) ? i : j) + 1) * sizeof(z[0]));
+    }
+  }
+}
+
 TCHAR *LangLoadString(UINT sid) {
 TCHAR *res;
 WORD *p;
@@ -305,7 +325,7 @@ DWORD i;
   // input parms
   if ((!nd) || (!host)) { return(1); }
   // load funcs
-  nd->hls = LoadLibrary(TEXT("SSLEAY32.dll"));
+  nd->hls = LoadLibraryA("SSLEAY32.dll");
   if (!nd->hls) { return(1); }
   for (i = 0; ssl_list[i].name; i++) {
     *ssl_list[i].proc = (DWORD) GetProcAddress(nd->hls, ssl_list[i].name);
@@ -344,7 +364,7 @@ DWORD i;
 
 void StrCatEscape(char *d, DWORD l, char *f, ...) {
 va_list args;
-TCHAR *s, e;
+CCHAR *s, e;
   if (d && l && f) {
     va_start(args, f);
     l--;
@@ -354,7 +374,7 @@ TCHAR *s, e;
       if (!s) {
         if ((*f == '#') || (*f == '$')) {
           e = (*f == '$') ? 1 : 0;
-          s = va_arg(args, TCHAR *);
+          s = va_arg(args, CCHAR *);
         } else {
           l--;
           *d = *f;
@@ -387,12 +407,12 @@ TCHAR *s, e;
 }
 
 #define MAX_LEN_SIZE (INTERNET_MAX_HOST_NAME_LENGTH + INTERNET_MAX_PATH_LENGTH + 44 + 1)
-BYTE WINAPI *HTTPSGetContent(TCHAR *url, DWORD *len) {
-char s[MAX_LEN_SIZE];
-URL_COMPONENTS uc;
+BYTE WINAPI *HTTPSGetContent(CCHAR *url, DWORD *len, CCHAR *head, CCHAR *data) {
+URL_COMPONENTSA uc;
 BYTE *result, *r;
 net_data nd;
-DWORD sz;
+DWORD sz, xs;
+char *s;
 int l;
   // init result
   result = NULL;
@@ -400,14 +420,16 @@ int l;
   // prepare URL string
   ZeroMemory(&uc, sizeof(uc));
   uc.dwStructSize = sizeof(uc);
-  sz = lstrlen(url);
-  uc.lpszHostName     = STR_ALLOC(sz);
+  sz = lstrlenA(url);
+  uc.lpszHostName     = (CCHAR *) GetMem(sz + 1);
   uc.dwHostNameLength = sz;
-  uc.lpszUrlPath      = STR_ALLOC(sz);
+  uc.lpszUrlPath      = (CCHAR *) GetMem(sz + 1);
   uc.dwUrlPathLength  = sz;
+  xs = MAX_LEN_SIZE + sz + (head ? lstrlenA(head) : 0) + (data ? (128 + lstrlenA(data)) : 0);
+  s = (char *) GetMem(xs);
   // sanity check
-  if (uc.lpszHostName && uc.lpszUrlPath &&
-    InternetCrackUrl(url, sz, 0, &uc) && uc.lpszHostName[0] && uc.lpszUrlPath[0] &&
+  if (s && uc.lpszHostName && uc.lpszUrlPath &&
+    InternetCrackUrlA(url, sz, 0, &uc) && uc.lpszHostName[0] && uc.lpszUrlPath[0] &&
     ((uc.nScheme == INTERNET_SCHEME_HTTPS)/* || (uc.nScheme == INTERNET_SCHEME_HTTP)*/)
   ) {
     NetInit(&nd);
@@ -416,25 +438,34 @@ int l;
     if (!NetWork(&nd, s, uc.nPort)) {
       //InternetCanonicalizeUrl(uc.lpszUrlPath, dest, dest_len, ICU_ENCODE_SPACES_ONLY);
       StrCatEscape(
-        s, MAX_LEN_SIZE,
-        "GET $ HTTP/1.0\r\nHost: #\r\nConnection: Close\r\n\r\n",
+        s, xs,
+        data ? "POST $ HTTP/1.0\r\nHost: #\r\n" : "GET $ HTTP/1.0\r\nHost: #\r\n",
          uc.lpszUrlPath, uc.lpszHostName
       );
+      if (head) {
+        StrBuild(s, xs, "%s", head);
+      }
+      if (data) {
+        StrBuild(s, xs, "Content-Type: text/plain; charset=UTF-8\r\nContent-Length: %lu\r\n", lstrlenA(data));
+      }
+      StrBuild(s, xs, "%s", "Connection: Close\r\n\r\n");
+      if (data) {
+        StrBuild(s, xs, "%s", data);
+      }
       SSL_write(nd.ssl, s, lstrlenA(s));
       do {
         l = SSL_read(nd.ssl, s, MAX_LEN_SIZE);
-        if (l) {
+        if (l > 0) {
           r = GrowMem(result, *len + l + 1);
-          if (r) {
-            result = r;
-            CopyMemory(&result[*len], s, l);
-          } else {
-            // not enough memory
+          // not enough memory
+          if (!r) {
             FreeMem(result);
             result = NULL;
             *len = 2;
             break;
           }
+          result = r;
+          CopyMemory(&result[*len], s, l);
           *len += l;
         }
       } while (l > 0);
@@ -442,34 +473,37 @@ int l;
       if (result && *len) {
         result[*len] = 0;
       }
-      // remove HTTP-headers
-      sz = 0;
-      while ((sz + 3) < *len) {
-        // document body found
-        if (*((DWORD *) &result[sz]) == 0x0A0D0A0D) {
-          l = (sz + 4);
-          sz = l;
-          while (sz < *len) {
-            result[sz - l] = result[sz];
-            sz++;
+      if (result) {
+        // remove HTTP-headers
+        sz = 0;
+        while ((sz + 3) < *len) {
+          // document body found
+          if (*((DWORD *) &result[sz]) == 0x0A0D0A0D) {
+            l = (sz + 4);
+            sz = l;
+            while (sz < *len) {
+              result[sz - l] = result[sz];
+              sz++;
+            }
+            *len -= l;
+            result[*len] = 0;
+            r = GrowMem(result, *len + 1);
+            if (r) {
+              result = r;
+            } else {
+              FreeMem(result);
+              result = NULL;
+              *len = 2;
+            }
+            break;
           }
-          *len -= l;
-          result[*len] = 0;
-          r = GrowMem(result, *len + 1);
-          if (r) {
-            result = r;
-          } else {
-            FreeMem(result);
-            result = NULL;
-            *len = 2;
-          }
-          break;
+          sz++;
         }
-        sz++;
       }
     }
     NetFree(&nd);
   }
+  if (s) { FreeMem(s); }
   if (uc.lpszUrlPath)  { FreeMem(uc.lpszUrlPath);  }
   if (uc.lpszHostName) { FreeMem(uc.lpszHostName); }
   return(result);
@@ -480,44 +514,62 @@ int l;
 
 // v1.4
 DWORD WINAPI RequestThreadFunc(LPVOID parm) {
-  *((DWORD *) parm) = HttpSendRequest(*((HINTERNET *) parm), TEXT("Connection: Close"), 17, NULL, 0);
+CCHAR s[1025];
+void **dx;
+DWORD l;
+  // v1.6 update
+  dx = (void **) parm;
+  *s = 0;
+  // head exists
+  if (dx[1]) {
+    StrBuild(s, 1025, "%s", (CCHAR *) dx[1]);
+  }
+  l = 0;
+  // data exists
+  if (dx[2]) {
+    l = lstrlenA((CCHAR *) dx[2]);
+    StrBuild(s, 1025, "Content-Type: text/plain; charset=UTF-8\r\nContent-Length: %lu\r\n", l);
+  }
+  StrBuild(s, 1025, "Connection: Close");
+  *((DWORD *) dx[0]) = HttpSendRequestA(*((HINTERNET *) dx[0]), s, lstrlenA(s), dx[2], l);
   return(0);
 }
 
 // it's not very optimized code but good for small Internet pages
 #define MAX_BLOCK_SIZE 1024
-BYTE *HTTPGetContent(TCHAR *url, DWORD *len) {
+BYTE *HTTPGetContent(CCHAR *url, DWORD *len, CCHAR *head, CCHAR *data) {
 HINTERNET hOpen, hConn, hReq;
-URL_COMPONENTS uc;
+URL_COMPONENTSA uc;
 BYTE *result, *buf, *r;
 DWORD sz, ti;
 HANDLE ht; // v1.4
+void *dx[3];// v1.6
   // init result
   result = NULL;
   *len = 0;
   // prepare URL string
   ZeroMemory(&uc, sizeof(uc));
   uc.dwStructSize = sizeof(uc);
-  sz = lstrlen(url);
-  uc.lpszHostName     = STR_ALLOC(sz);
+  sz = lstrlenA(url);
+  uc.lpszHostName     = (CCHAR *) GetMem(sz + 1);
   uc.dwHostNameLength = sz;
-  uc.lpszUrlPath      = STR_ALLOC(sz);
+  uc.lpszUrlPath      = (CCHAR *) GetMem(sz + 1);
   uc.dwUrlPathLength  = sz;
-  sz = InternetCrackUrl(url, lstrlen(url), 0, &uc);
+  sz = InternetCrackUrlA(url, lstrlenA(url), 0, &uc);
   // sanity check
   if (sz && ((uc.nScheme == INTERNET_SCHEME_HTTPS) || (uc.nScheme == INTERNET_SCHEME_HTTP)) &&
       uc.lpszHostName && uc.lpszUrlPath && uc.lpszHostName[0] && uc.lpszUrlPath[0]
   ) {
     // open
-    hOpen = InternetOpen(NULL, INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    hOpen = InternetOpenA(NULL, INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (hOpen) {
       // connect
       sz = (uc.nScheme == INTERNET_SCHEME_HTTPS) ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT;
-      hConn = InternetConnect(hOpen, uc.lpszHostName, sz, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+      hConn = InternetConnectA(hOpen, uc.lpszHostName, sz, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
       if (hConn) {
         // request
         sz = (uc.nScheme == INTERNET_SCHEME_HTTPS) ? (INTERNET_FLAG_SECURE | INTERNET_FLAG_IGNORE_CERT_CN_INVALID | INTERNET_FLAG_IGNORE_CERT_DATE_INVALID) : 0;
-        hReq = HttpOpenRequest(hConn, NULL, uc.lpszUrlPath, HTTP_VERSION, NULL, NULL,
+        hReq = HttpOpenRequestA(hConn, data ? "POST" : NULL, uc.lpszUrlPath, "HTTP/1.0"/*HTTP_VERSION*/, NULL, NULL,
           INTERNET_FLAG_NO_UI | INTERNET_FLAG_NO_COOKIES | // INTERNET_FLAG_NO_AUTO_REDIRECT |
           INTERNET_FLAG_NO_CACHE_WRITE | sz, 0);
         if (hReq) {
@@ -525,7 +577,10 @@ HANDLE ht; // v1.4
           // note that literally none of InternetSetOption() options for timeout works
           sz = (DWORD) hReq;
           ti = 0;
-          ht = CreateThread(NULL, 0, RequestThreadFunc, &sz, 0, &ti);
+          dx[0] = &sz;
+          dx[1] = head;
+          dx[2] = data;
+          ht = CreateThread(NULL, 0, RequestThreadFunc, dx, 0, &ti);
           if (ht) {
             if (WaitForSingleObject(ht, 5000) == WAIT_TIMEOUT) {
               TerminateThread(ht, 0);
@@ -558,16 +613,15 @@ HANDLE ht; // v1.4
                   InternetReadFile(hReq, buf, MAX_BLOCK_SIZE, &sz);
                   if (sz) {
                     r = GrowMem(result, *len + sz + 1);
-                    if (r) {
-                      result = r;
-                      CopyMemory(&result[*len], buf, sz);
-                    } else {
-                      // not enough memory
+                    // not enough memory
+                    if (!r) {
                       FreeMem(result);
                       result = NULL;
                       *len = 2;
                       break;
                     }
+                    result = r;
+                    CopyMemory(&result[*len], buf, sz);
                     *len += sz;
                   }
                 } while (sz);
@@ -601,7 +655,7 @@ HANDLE ht; // v1.4
     if ((!result) && (uc.nScheme == INTERNET_SCHEME_HTTPS)) {
       sz = *len;
       *len = 0;
-      result = HTTPSGetContent(url, len);
+      result = HTTPSGetContent(url, len, head, data);
       if (!result) { *len = sz; }
     }
   }

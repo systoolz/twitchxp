@@ -8,7 +8,7 @@
 #include "IniFiles.h"
 
 TCHAR *OpenSaveDialogEx(HWND wnd, DWORD msk, TCHAR *name, int savedlg) {
-TCHAR buf[1024], *result, *s;
+TCHAR buf[1025], *result, *s;
 DWORD i, l;
   result = NULL;
   l = 0;
@@ -24,13 +24,13 @@ DWORD i, l;
     if (msk & 1) {
       s = LangLoadString(i);
       if (s) {
-        lstrcpyn(&buf[l], s, 1024 - l);
+        lstrcpyn(&buf[l], s, 1025 - l);
         l += lstrlen(s);
         FreeMem(s);
       }
     }
     // buf string too short
-    if (l >= 1024) { break; }
+    if (l >= 1025) { break; }
   }
   // replace '|' with nulls
   for (s = buf; *s; s++) {
@@ -64,7 +64,7 @@ DWORD i, l;
 }
 
 TCHAR *GetChannelName(HWND wnd) {
-TCHAR *s, b[1024];
+TCHAR *s, b[1025];
 URL_COMPONENTS uc;
 DWORD i;
   s = GetWndText(wnd);
@@ -78,7 +78,7 @@ DWORD i;
       uc.dwStructSize = sizeof(uc);
       *b = 0;
       uc.lpszUrlPath = b;
-      uc.dwUrlPathLength = 1024;
+      uc.dwUrlPathLength = 1025;
       // cracked successfully
       if (
         InternetCrackUrl(s, lstrlen(s), 0, &uc) && (uc.lpszUrlPath[0] == TEXT('/')) &&
@@ -112,61 +112,106 @@ DWORD i;
   return(s);
 }
 
+void AddSlashes(CCHAR *s, CCHAR *d, DWORD sz) {
+  if (s && d && sz) {
+    while (*s && sz) {
+      if ((*s == '\\') || (*s == '"') || (*s == '\'')) {
+        if (sz <= 2) { break; }
+        *d = '\\'; d++; sz--;
+        *d = *s;
+      } else {
+        *d = *s;
+      }
+      d++;
+      sz--;
+      s++;
+    }
+    d -= sz ? 0 : 1;
+    *d = 0;
+  }
+}
+
 // short and simply to understand code for Twitch.tv protocol can be found here:
 // https://github.com/systoolz/miscsoft/blob/master/twitchtv.php
 // max def stack size: 3984
 CCHAR *TwitchPlayList(TCHAR *name) {
-CCHAR *r, *p;
-TCHAR *s, *w, b[1024];
-DWORD i, j, k;
+CCHAR *r, *s, *z, *buf, *cid, *did, *qry, *chn;
+DWORD i;
   r = NULL;
   // sanity check
   if (name && *name) {
-    // get channel information
-    s = LangLoadString(IDS_FMT_INFOLINK);
-    if (s) {
-      wsprintf(b, s, name);
-      FreeMem(s);
-      // get channel information
-      i = 0;
-      r = (CCHAR *) HTTPGetContent(b, &i);
-      *b = 0;
-      if (r) {
-        i++;
-        p = (CCHAR *) GetMem(i);
-        w = (TCHAR *) GetMem(i * sizeof(b[0]));
-        // memory allocated
-        if (p && w) {
-          // get token
-          JSONParser(r, "\"token\"", p, i);
-          k = lstrlenA(p);
-          // get signature
-          JSONParser(r, "\"sig\"", &p[k + 1], i - (k + 1));
-          // both parameters found
-          if (k && p[0] && p[k + 1]) {
-            // merge to single string
-            s = LangLoadString(IDS_FMT_LISTLINK);
-            if (s) {
-              // lazy UTF-8 to ANSI/Unicode conversion
-              for (j = 0; j < i; j++) {
-                w[j] = p[j];
-              }
-              wsprintf(b, s, name, w, &w[k + 1], GetTickCount());
-              FreeMem(s);
-            }
-          }
+    // v1.6 new method
+    z = GetMem((1025 * 5) + lstrlen(name));
+    if (z) {
+      buf = &z[1025 * 0];
+      cid = &z[1025 * 1];
+      did = &z[1025 * 2];
+      qry = &z[1025 * 3];
+      chn = &z[1025 * 4];
+      do {
+        // lazy Unicode to ANSI
+        for (i = 0; i < 1025; i++) {
+          chn[i] = name[i];
+          if (!chn[i]) { break; }
         }
-        if (w) { FreeMem(w); }
-        if (p) { FreeMem(p); }
-        FreeMem(r);
-        // get channel playlist
-        r = *b ? ((CCHAR *) HTTPGetContent(b, &i)) : NULL;
-      } else {
-        // v1.1
-        r = (CCHAR *) i; // v1.3
-      }
-    } // infolink
-  } // sanity
+        chn[1024] = 0;
+        // get clientId
+        wsprintfA(buf, "https://www.twitch.tv/%s", chn);
+        s = (CCHAR *) HTTPGetContent(buf, &i, NULL, NULL);
+        if (!s) {
+          r = (CCHAR *) i; // v1.3
+          break;
+        }
+        GetWildMatch(s, "clientId = \"*\"", cid, 1025);
+        GetWildMatch(s, "var query = '*'", qry, 1025);
+        FreeMem(s);
+        // build deviceId (anything)
+        for (i = 0; i < 16; i++) {
+          wsprintfA(&did[i * 2], "%02x", (GetTickCount() * i) & 0xFF);
+        }
+        // build headers
+        wsprintfA(buf, "Client-ID: %s\r\nDevice-ID: %s\r\n", cid, did);
+        // build POST data
+        AddSlashes(qry, cid, 1025);
+        wsprintfA(did,
+          "{\"operationName\":\"PlaybackAccessToken_Template\",\"query\":\"%s\",\"variables\":{\"isLive\":true,\"login\":\"%s\",\"isVod\":false,\"vodID\":\"\",\"playerType\":\"site\"}}",
+          cid, chn
+        );
+        s = (CCHAR *) HTTPGetContent("https://gql.twitch.tv/gql", &i, buf, did);
+        if (!s) {
+          r = (CCHAR *) i; // v1.3
+          break;
+        }
+        // get signature and token
+        JSONParser(s, "\"data\"", cid, 1025);
+        FreeMem(s);
+        if (!*cid) { break; }
+        JSONParser(cid, "\"streamPlaybackAccessToken\"", buf, 1025);
+        if (!*buf) { break; }
+        JSONParser(buf, "\"signature\"", cid, 1025);
+        if (!*cid) { break ;}
+        JSONParser(buf, "\"value\"", did, 1025);
+        if (!*did) { break ;}
+        // usher.ttvnw.net
+        wsprintfA(buf,
+          "https://usher.twitch.tv/api/channel/hls/%s.m3u8?allow_source=true&fast_bread=true&p=%lu&playlist_include_framerate=true&reassignments_supported=true&sig=%s&token=%s",
+          chn,
+          GetTickCount(),
+          cid,
+          did
+        );
+        // get playlist
+        s = (CCHAR *) HTTPGetContent(buf, &i, NULL, NULL);
+        if (!s) {
+          r = (CCHAR *) i; // v1.3
+          break;
+        }
+        r = s;
+      } while (0);
+      // cleanup
+      FreeMem(z);
+    }
+  }
   return(r);
 }
 
@@ -235,7 +280,7 @@ DWORD dw;
 }
 
 DWORD LoadTwitchList(HWND wnd, TCHAR *s) {
-CCHAR *r, *p, b[1024];
+CCHAR *r, *p, b[1025];
 DWORD result;
 int i;
   result = 1; // error load http data
@@ -264,7 +309,7 @@ int i;
         p = M3U8Parser(p, "#EXT-X-STREAM-INF\0RESOLUTION", &b[512], 500);
         wsprintfA(b, "%s%c| %s", *b ? b : "???", b[512] ? ' ' : 0, &b[512]);
         i = SendMessageA(wnd, CB_ADDSTRING, 0, (LPARAM) b);
-        p = M3U8Parser(p, NULL, b, 1024);
+        p = M3U8Parser(p, NULL, b, 1025);
         if (i >= 0) {
           SendMessage(wnd, CB_SETITEMDATA, i, (LPARAM) StDupConv(b));
         }
@@ -281,7 +326,7 @@ int i;
 }
 
 void PlayTwitchLink(HWND wnd) {
-TCHAR b[2048], *s, *l;
+TCHAR b[1025 * 2], *s, *l;
 int i;
   // something actually selected
   l = NULL;
@@ -307,12 +352,12 @@ int i;
       }
     } else {
       // system player
-      i = 1024;
+      i = 1025;
       *b = 0;
       // PATCH: invalid headers of GCC 3.2 - first enum ASSOCSTR_COMMAND must be 1, not 0
       if ((AssocQueryString(0, 2, TEXT(".AVI"), TEXT("open"), b, (DWORD *)&i) == S_OK) && *b) {
-        wsprintf(&b[1024], TEXT("\"%s\" \"%s\""), b, l);
-        WinExecFile(&b[1024], SW_SHOWNORMAL);
+        wsprintf(&b[1025], TEXT("\"%s\" \"%s\""), b, l);
+        WinExecFile(&b[1025], SW_SHOWNORMAL);
       } else {
         MsgBox(wnd, MAKEINTRESOURCE(IDS_MSG_NOTPLAY), MB_ICONERROR | MB_OK);
       }

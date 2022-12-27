@@ -13,12 +13,12 @@ IDI_ICN ICON "TwitchXP.ico"
 1 24 "Manifest.xml"
 
 #define R_CAPTION "TwitchXP"
-#define R_VERSION "1.5"
+#define R_VERSION "1.6"
 #define R_INTNAME "TwitchXP"
 
 1 VERSIONINFO
-FILEVERSION 1,5,0,0
-PRODUCTVERSION 1,5,0,0
+FILEVERSION 1,6,0,0
+PRODUCTVERSION 1,6,0,0
 FILETYPE 1
 BEGIN
   BLOCK "StringFileInfo"
@@ -28,7 +28,7 @@ BEGIN
       VALUE "CompanyName", "SysTools"
       VALUE "FileDescription", R_CAPTION
       VALUE "FileVersion", R_VERSION
-      VALUE "LegalCopyright", "\xA9 SysTools 2018-2021"
+      VALUE "LegalCopyright", "\xA9 SysTools 2018-2022"
       VALUE "OriginalFilename", R_INTNAME ".exe"
       VALUE "InternalName", R_INTNAME
       VALUE "ProductName", R_CAPTION
@@ -60,7 +60,7 @@ BEGIN
   PUSHBUTTON      "Browse...", IDC_PL_BRWS, 197, 77, 55, 14
   AUTOCHECKBOX    "Hide player console window (for ffplay, mplayer, etc.)", IDC_PL_HIDE, 7, 97, 181, 8
   PUSHBUTTON      "Exit", IDCANCEL, 197, 97, 55, 14
-  LTEXT           "\xA9 SysTools 2018-2021 | http://systools.losthost.org/?misc", IDC_SITELNK, 7, 117, 184, 8, SS_OWNERDRAW | SS_NOTIFY
+  LTEXT           "\xA9 SysTools 2018-2022 | http://systools.losthost.org/?misc", IDC_SITELNK, 7, 117, 184, 8, SS_OWNERDRAW | SS_NOTIFY
   LTEXT           "Custom software development for your business or personal usage.\nContact for more details.", IDC_STATIC, 7, 127, 210, 17
 END
 
@@ -69,10 +69,6 @@ BEGIN
   IDS_MSK_M3U "M3U Playlist (*.m3u)|*.m3u|"
   IDS_MSK_EXE "Executable files|*.exe;*.cmd;*.bat;*.com|"
   IDS_MSK_ANY "All Files (*.*)|*.*|"
-  // this client_id taken from the original Twitch.tv player file:
-  // https://player.twitch.tv/vendor/TwitchPlayer.7cfe0f2e9d071ac72c5a539139bcedd4.swf
-  IDS_FMT_INFOLINK "https://api.twitch.tv/api/channels/%s/access_token?client_id=rp5xf0lwwskmtt1nyuee68mgd0hthrw"
-  IDS_FMT_LISTLINK "https://usher.twitch.tv/api/channel/hls/%s.m3u8?player=twitchweb&token=%s&sig=%s&allow_audio_only=true&allow_source=true&type=any&p=%lu"
 
   IDS_MSG_INVALID "Invalid channel name."
   IDS_MSG_CHANNEL "Network error or incorrect channel name."
