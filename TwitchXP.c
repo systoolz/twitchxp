@@ -192,9 +192,9 @@ DWORD i;
         if (!*cid) { break ;}
         JSONParser(buf, "\"value\"", did, 1025);
         if (!*did) { break ;}
-        // usher.ttvnw.net
+        // old: usher.twitch.tv
         wsprintfA(buf,
-          "https://usher.twitch.tv/api/channel/hls/%s.m3u8?allow_source=true&fast_bread=true&p=%lu&playlist_include_framerate=true&reassignments_supported=true&sig=%s&token=%s",
+          "https://usher.ttvnw.net/api/channel/hls/%s.m3u8?allow_source=true&fast_bread=true&p=%lu&playlist_include_framerate=true&reassignments_supported=true&sig=%s&token=%s",
           chn,
           GetTickCount(),
           cid,

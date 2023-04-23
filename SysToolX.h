@@ -6,6 +6,7 @@
 #define MEM_MOVE(x, y) (*((y *)x))
 #define STR_SIZE(x) ((lstrlen(x) + 1) * sizeof(TCHAR))
 #define STR_ALLOC(x) ((TCHAR *) GetMem((x + 1) * sizeof(TCHAR)))
+#define LIST_LEN(x) (sizeof((x)) / sizeof((x)[0]))
 
 void FreeMem(void *block);
 void *GetMem(DWORD dwSize);

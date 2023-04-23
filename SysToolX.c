@@ -51,7 +51,7 @@ DWORD i, s, e;
   }
 }
 
-// v1.06
+// v1.6
 void WINAPIV StrBuild(CCHAR *z, DWORD l, CCHAR *fmt, ...) {
 CCHAR s[1025];
 va_list args;
@@ -233,8 +233,8 @@ RECT rc;
 typedef int (*LPSSL_LIBRARY_INIT)(void);
 static LPSSL_LIBRARY_INIT SSL_library_init;
 
-typedef void* (*LPTLSV1_2_CLIENT_METHOD)(void);
-static LPTLSV1_2_CLIENT_METHOD TLSv1_2_client_method;
+typedef void* (*LPSSLV23_CLIENT_METHOD)(void);
+static LPSSLV23_CLIENT_METHOD SSLv23_client_method;
 
 typedef void* (*LPSSL_CTX_NEW)(void *method);
 static LPSSL_CTX_NEW SSL_CTX_new;
@@ -260,6 +260,16 @@ static LPSSL_READ SSL_read;
 typedef int (*LPSSL_WRITE)(void *ssl, const void *buf, int num);
 static LPSSL_WRITE SSL_write;
 
+// v1.7
+typedef long (*LPSSL_CTX_CTRL)(void *ctx, int cmd, long larg, void *parg);
+LPSSL_CTX_CTRL SSL_CTX_ctrl;
+
+typedef void (*LPSSL_CTX_SET_VERIFY)(void *ssl, int mode, void *verify_callback);
+static LPSSL_CTX_SET_VERIFY SSL_CTX_set_verify;
+
+typedef long (*LPSSL_CTRL)(void *s, int cmd, long larg, void *parg);
+LPSSL_CTRL SSL_ctrl;
+
 #pragma pack(push, 1)
 typedef struct {
   HINSTANCE hls;
@@ -277,7 +287,7 @@ typedef struct {
 
 static ssl_func ssl_list[] = {
   {"SSL_library_init",      (DWORD *) &SSL_library_init},
-  {"TLSv1_2_client_method", (DWORD *) &TLSv1_2_client_method},
+  {"SSLv23_client_method",  (DWORD *) &SSLv23_client_method},
   {"SSL_CTX_new",           (DWORD *) &SSL_CTX_new},
   {"SSL_CTX_free",          (DWORD *) &SSL_CTX_free},
   {"SSL_new",               (DWORD *) &SSL_new},
@@ -286,7 +296,10 @@ static ssl_func ssl_list[] = {
   {"SSL_connect",           (DWORD *) &SSL_connect},
   {"SSL_read",              (DWORD *) &SSL_read},
   {"SSL_write",             (DWORD *) &SSL_write},
-  {NULL, NULL}
+  // v1.7
+  {"SSL_CTX_ctrl",          (DWORD *) &SSL_CTX_ctrl},
+  {"SSL_CTX_set_verify",    (DWORD *) &SSL_CTX_set_verify},
+  {"SSL_ctrl",              (DWORD *) &SSL_ctrl}
 };
 
 void NetInit(net_data *nd) {
@@ -327,7 +340,7 @@ DWORD i;
   // load funcs
   nd->hls = LoadLibraryA("SSLEAY32.dll");
   if (!nd->hls) { return(1); }
-  for (i = 0; ssl_list[i].name; i++) {
+  for (i = 0; i < LIST_LEN(ssl_list); i++) {
     *ssl_list[i].proc = (DWORD) GetProcAddress(nd->hls, ssl_list[i].name);
     if (!*ssl_list[i].proc) { return(1); }
   }
@@ -347,8 +360,11 @@ DWORD i;
   sai.sin_port = htons(port);
   // SSL
   SSL_library_init();
-  nd->ctx = SSL_CTX_new(TLSv1_2_client_method());
+  nd->ctx = SSL_CTX_new(SSLv23_client_method());
   if (!nd->ctx) { return(4); }
+  // v1.7: SSL_CTX_set_options(nd->ctx, SSL_OP_ALL);
+  SSL_CTX_ctrl(nd->ctx, 0x20/*SSL_CTRL_OPTIONS*/, 0x80000FFFL/*SSL_OP_ALL*/, NULL); // v1.7
+  SSL_CTX_set_verify(nd->ctx, 0/*SSL_VERIFY_NONE*/, NULL); // v1.7
   nd->ssl = SSL_new(nd->ctx);
   if (!nd->ssl) { return(5); }
   // socket
@@ -358,6 +374,8 @@ DWORD i;
   if (connect(nd->sck, (struct sockaddr *) &sai, sizeof(sai)) != 0) { return(7); }
   // set fd
   if (SSL_set_fd(nd->ssl, nd->sck) != 1) { return(8); }
+  // v1.7: SSL_set_tlsext_host_name(nd->ssl, host); --- this line is crucial for SSL_connect() !
+  SSL_ctrl(nd->ssl, 0x37/*SSL_CTRL_SET_TLSEXT_HOSTNAME*/, 0/*TLSEXT_NAMETYPE_host_name*/, (char *) host); // v1.7
   if (SSL_connect(nd->ssl) != 1) { return(9); }
   return(0);
 }
