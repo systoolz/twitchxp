@@ -30,4 +30,6 @@ void AdjustComboBoxHeight(HWND hWndCmbBox, DWORD MaxVisItems);
 
 BYTE *HTTPGetContent(CCHAR *url, DWORD *len, CCHAR *head, CCHAR *data);
 
+void WINAPIV DebugWnd(const TCHAR *fmt, ...);
+
 #endif

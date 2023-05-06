@@ -165,6 +165,8 @@ DWORD i;
         GetWildMatch(s, "clientId = \"*\"", cid, 1025);
         GetWildMatch(s, "var query = '*'", qry, 1025);
         FreeMem(s);
+        DebugWnd(TEXT("clientId: %hs"), cid);
+        DebugWnd(TEXT("query: %hs"), qry);
         // build deviceId (anything)
         for (i = 0; i < 16; i++) {
           wsprintfA(&did[i * 2], "%02x", (GetTickCount() * i) & 0xFF);
@@ -186,12 +188,16 @@ DWORD i;
         JSONParser(s, "\"data\"", cid, 1025);
         FreeMem(s);
         if (!*cid) { break; }
+        DebugWnd(TEXT("data: %hs"), cid);
         JSONParser(cid, "\"streamPlaybackAccessToken\"", buf, 1025);
         if (!*buf) { break; }
+        DebugWnd(TEXT("streamPlaybackAccessToken: %hs"), buf);
         JSONParser(buf, "\"signature\"", cid, 1025);
         if (!*cid) { break ;}
+        DebugWnd(TEXT("signature: %hs"), cid);
         JSONParser(buf, "\"value\"", did, 1025);
         if (!*did) { break ;}
+        DebugWnd(TEXT("value: %hs"), did);
         // old: usher.twitch.tv
         wsprintfA(buf,
           "https://usher.ttvnw.net/api/channel/hls/%s.m3u8?allow_source=true&fast_bread=true&p=%lu&playlist_include_framerate=true&reassignments_supported=true&sig=%s&token=%s",
@@ -318,6 +324,7 @@ int i;
       s = (TCHAR *) GetWndData(GetDlgItem(GetParent(wnd), IDC_QUALITY));
       SendMessage(wnd, CB_SETCURSEL, s ? SendMessage(wnd, CB_FINDSTRING, (WPARAM) -1, (LPARAM) s) : -1, 0);
     } else {
+      DebugWnd(TEXT("server playlist reply: %hs"), r);
       // error - free buffer
       FreeMem(r);
     }
@@ -534,6 +541,10 @@ DWORD i;
       SettingsHandler(wnd, FALSE);
       // create hints
       InitToolTip(wnd);
+      // v1.8 init debug window
+      DebugWnd(NULL, GetDlgItem(wnd, IDC_LOGINFO));
+      // hide debug window
+      ShowWindow(GetDlgItem(wnd, IDC_LOGINFO), SW_HIDE);
       // must be true
       result = TRUE;
       break;
@@ -580,6 +591,7 @@ DWORD i;
             s = GetChannelName(GetDlgItem(wnd, IDC_CHANNEL));
             i = 1;
             if (s) {
+              DebugWnd(TEXT("~channel: %s"), s);
               i = LoadTwitchList(GetDlgItem(wnd, IDC_QUALITY), s);
               if (!i) {
                 // enable controls
@@ -682,6 +694,13 @@ DWORD i;
         SetWindowLongPtr(wnd, DWLP_MSGRESULT, TRUE);
         result = TRUE;
       }
+      break;
+    // v1.8 toggle debug window
+    case WM_HELP:
+      i = IsWindowVisible(GetDlgItem(wnd, IDC_LOGINFO));
+      ShowWindow(GetDlgItem(wnd, IDC_LOGINFO), i ? SW_HIDE : SW_SHOW);
+      ShowWindow(GetDlgItem(wnd, IDC_SITELNK), i ? SW_SHOW : SW_HIDE);
+      ShowWindow(GetDlgItem(wnd, IDC_DETAILS), i ? SW_SHOW : SW_HIDE);
       break;
   }
   return(result);

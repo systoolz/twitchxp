@@ -681,3 +681,35 @@ void *dx[3];// v1.6
   if (uc.lpszUrlPath)  { FreeMem(uc.lpszUrlPath);  }
   return(result);
 }
+
+// v1.8
+static HWND hDebugWnd;
+
+void WINAPIV DebugWnd(const TCHAR *fmt, ...) {
+TCHAR s[1025];
+va_list args;
+DWORD i;
+  va_start(args, fmt);
+  if (!fmt) {
+    // set output window handle
+    hDebugWnd = va_arg(args, HWND);
+  } else {
+    // clear all, new log
+    i = 0;
+    if (fmt[i] == TEXT('~')) {
+      i++;
+      s[0] = 0;
+      SendMessage(hDebugWnd, EM_SETSEL, 0, -1);
+      SendMessage(hDebugWnd, EM_REPLACESEL, (WPARAM) FALSE, (LPARAM) s);
+    }
+    wvsprintf(s, &fmt[i], args);
+    SendMessage(hDebugWnd, EM_SETSEL, -1, 0);
+    for (i = 0; i < 3; i++) {
+      SendMessage(hDebugWnd, EM_REPLACESEL, (WPARAM) FALSE, (LPARAM) s);
+      s[0] = TEXT('\r');
+      s[1] = TEXT('\n');
+      s[2] = 0;
+    }
+  }
+  va_end(args);
+}

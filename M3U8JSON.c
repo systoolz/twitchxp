@@ -198,7 +198,7 @@ int i;
         COPY2BUF;
         s++;
       }
-    } while (1);
+    } while (0); // v1.8 fix
     // tail zero
     if (d) {
       d -= sz ? 0 : 1;

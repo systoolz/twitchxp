@@ -1,3 +1,7 @@
+v1.8 [2023.05.06]
+- fixed infinite loop due to typo in JSON parser code
+- added debug log information window (press F1 to toggle)
+
 v1.7 [2023.04.23]
 - updated OpenSSL code, fixed work with the playlist server
 
