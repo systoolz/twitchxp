@@ -168,9 +168,12 @@ DWORD i;
         DebugWnd(TEXT("clientId: %hs"), cid);
         DebugWnd(TEXT("query: %hs"), qry);
         // build deviceId (anything)
-        for (i = 0; i < 16; i++) {
-          wsprintfA(&did[i * 2], "%02x", (GetTickCount() * i) & 0xFF);
+        for (i = 0; i < 32; i++) {
+          did[i] = (GetTickCount() * i) & 0x0F;
+          did[i] += (did[i] < 10) ? '0' : ('a' - 10);
+          Sleep(1); // update GetTickCount()
         }
+        did[32] = 0;
         // build headers
         wsprintfA(buf, "Client-ID: %s\r\nDevice-ID: %s\r\n", cid, did);
         // build POST data
@@ -286,8 +289,8 @@ DWORD dw;
 }
 
 DWORD LoadTwitchList(HWND wnd, TCHAR *s) {
-CCHAR *r, *p, b[1025];
-DWORD result;
+CCHAR *r, *p, *b;
+DWORD result, l;
 int i;
   result = 1; // error load http data
   r = TwitchPlayList(s);
@@ -298,42 +301,49 @@ int i;
   }
   if (r) {
     result = 2; // invalid playlist format
-    p = r;
-    *b = 0;
-    b[10] = 0;
-    p = M3U8Parser(p, NULL, b, 7+1);
-    p = M3U8Parser(p, NULL, &b[10], 18+1);
-    // format check
-    if ((!lstrcmpA(b, "#EXTM3U")) && (!lstrcmpA(&b[10], "#EXT-X-TWITCH-INFO"))) {
-      // save playlist in save button
-      PutWndData(GetDlgItem(GetParent(wnd), IDC_SAVE_IT), r);
-      FreeTwitchList(wnd);
-      result = 0; // successful
-      // fill in combobox
-      while (*p) {
-        p = M3U8Parser(p, "#EXT-X-MEDIA\0NAME", b, 500);
-        p = M3U8Parser(p, "#EXT-X-STREAM-INF\0RESOLUTION", &b[512], 500);
-        wsprintfA(b, "%s%c| %s", *b ? b : "???", b[512] ? ' ' : 0, &b[512]);
-        i = SendMessageA(wnd, CB_ADDSTRING, 0, (LPARAM) b);
-        p = M3U8Parser(p, NULL, b, 1025);
-        if (i >= 0) {
-          SendMessage(wnd, CB_SETITEMDATA, i, (LPARAM) StDupConv(b));
+    l = lstrlenA(r);
+    b = (CCHAR *) GetMem((l + 1) * sizeof(b[0]));
+    l /= 2;
+    if (b) {
+      p = r;
+      *b = 0;
+      b[10] = 0;
+      p = M3U8Parser(p, NULL, b, 7+1);
+      p = M3U8Parser(p, NULL, &b[10], 18+1);
+      // format check
+      if ((!lstrcmpA(b, "#EXTM3U")) && (!lstrcmpA(&b[10], "#EXT-X-TWITCH-INFO"))) {
+        // save playlist in save button
+        PutWndData(GetDlgItem(GetParent(wnd), IDC_SAVE_IT), r);
+        FreeTwitchList(wnd);
+        result = 0; // successful
+        // fill in combobox
+        while (*p) {
+          p = M3U8Parser(p, "#EXT-X-MEDIA\0NAME", b, l);
+          p = M3U8Parser(p, "#EXT-X-STREAM-INF\0RESOLUTION", &b[l], l);
+          wsprintfA(b, "%s%c| %s", *b ? b : "???", b[l] ? ' ' : 0, &b[l]);
+          i = SendMessageA(wnd, CB_ADDSTRING, 0, (LPARAM) b);
+          p = M3U8Parser(p, NULL, b, l);
+          if (i >= 0) {
+            SendMessage(wnd, CB_SETITEMDATA, i, (LPARAM) StDupConv(b));
+          }
         }
+        // set default selection
+        s = (TCHAR *) GetWndData(GetDlgItem(GetParent(wnd), IDC_QUALITY));
+        SendMessage(wnd, CB_SETCURSEL, s ? SendMessage(wnd, CB_FINDSTRING, (WPARAM) -1, (LPARAM) s) : -1, 0);
+      } else {
+        DebugWnd(TEXT("server playlist reply: %hs"), r);
+        // error - free buffer
+        FreeMem(r);
       }
-      // set default selection
-      s = (TCHAR *) GetWndData(GetDlgItem(GetParent(wnd), IDC_QUALITY));
-      SendMessage(wnd, CB_SETCURSEL, s ? SendMessage(wnd, CB_FINDSTRING, (WPARAM) -1, (LPARAM) s) : -1, 0);
-    } else {
-      DebugWnd(TEXT("server playlist reply: %hs"), r);
-      // error - free buffer
-      FreeMem(r);
+      FreeMem(b);
     }
   }
   return(result);
 }
 
 void PlayTwitchLink(HWND wnd) {
-TCHAR b[1025 * 2], *s, *l;
+TCHAR *s, *l, *x;
+DWORD k;
 int i;
   // something actually selected
   l = NULL;
@@ -348,27 +358,41 @@ int i;
     SetFocus(GetDlgItem(wnd, IDC_QUALITY));
   }
   if (l) {
+    x = NULL;
+    s = NULL;
     // custom or system video player
     if (IsDlgButtonChecked(wnd, IDC_PL_CUST) == BST_CHECKED) {
       // custom player
       s = GetWndText(GetDlgItem(wnd, IDC_PL_LINE));
       if (s) {
-        wsprintf(b, TEXT("%s \"%s\""), s, l);
-        FreeMem(s);
-        WinExecFile(b, (IsDlgButtonChecked(wnd, IDC_PL_HIDE) == BST_CHECKED) ? SW_HIDE : SW_SHOWNORMAL);
+        x = StrTplFmt(TEXT("\"\x01\" \"\x01\""), s, l);
+        if (x) {
+          WinExecFile(x, (IsDlgButtonChecked(wnd, IDC_PL_HIDE) == BST_CHECKED) ? SW_HIDE : SW_SHOWNORMAL);
+        }
       }
     } else {
       // system player
-      i = 1025;
-      *b = 0;
-      // PATCH: invalid headers of GCC 3.2 - first enum ASSOCSTR_COMMAND must be 1, not 0
-      if ((AssocQueryString(0, 2, TEXT(".AVI"), TEXT("open"), b, (DWORD *)&i) == S_OK) && *b) {
-        wsprintf(&b[1025], TEXT("\"%s\" \"%s\""), b, l);
-        WinExecFile(&b[1025], SW_SHOWNORMAL);
+      k = 0;
+      for (i = 0; i < 2; i++) {
+        // PATCH: invalid headers of GCC 3.2 - first enum ASSOCSTR_COMMAND must be 1, not 0
+        AssocQueryString(0, 2, TEXT(".AVI"), TEXT("open"), s, &k);
+        if (!i) {
+          s = (TCHAR *) GetMem((k + 1) * sizeof(x[0]));
+          if (!s) { break; }
+          *s = 0;
+        }
+      }
+      if (s && *s) {
+        x = StrTplFmt(TEXT("\"\x01\" \"\x01\""), s, l);
+        if (x) {
+          WinExecFile(x, SW_SHOWNORMAL);
+        }
       } else {
         MsgBox(wnd, MAKEINTRESOURCE(IDS_MSG_NOTPLAY), MB_ICONERROR | MB_OK);
       }
     }
+    if (s) { FreeMem(s); }
+    if (x) { FreeMem(x); }
   }
 }
 

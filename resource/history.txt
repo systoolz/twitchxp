@@ -1,3 +1,7 @@
+v1.9 [2024.06.01]
+- dynamic allocated buffers for parser code which fixes playback from application
+- player path escaped with double quotes to allow spaces in the path ("Program Files")
+
 v1.8 [2023.05.06]
 - fixed infinite loop due to typo in JSON parser code
 - added debug log information window (press F1 to toggle)

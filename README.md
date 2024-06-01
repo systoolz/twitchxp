@@ -8,7 +8,7 @@ Should work anywhere starting from Windows 98.
 
 Softpedia Editor's review (you can download binary "TwitchXP.exe" here):
 
-http://www.softpedia.com/get/Internet/Streaming/TwitchXP.shtml
+https://www.softpedia.com/get/Internet/Streaming/TwitchXP.shtml
 
 Software homepage (you can download binary "TwitchXP.exe" here):
 

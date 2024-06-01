@@ -713,3 +713,50 @@ DWORD i;
   }
   va_end(args);
 }
+
+// v1.9
+TCHAR WINAPIV *StrTplFmt(TCHAR *f, ...) {
+TCHAR *s, *v, *p;
+DWORD sz, i;
+va_list args;
+  s = NULL;
+  if (f) {
+    p = f;
+    for (i = 0; i < 2; i++) {
+      sz = 1;
+      va_start(args, f);
+      while (*f) {
+        if (*f == 0x01) {
+          v = va_arg(args, TCHAR *);
+          if (v) {
+            while (*v) {
+              if (s) {
+                *s = *v;
+                s++;
+              }
+              sz++;
+              v++;
+            }
+          }
+        } else {
+          if (s) {
+            *s = *f;
+            s++;
+          }
+          sz++;
+        }
+        f++;
+      }
+      va_end(args);
+      if (!i) {
+        s = (TCHAR *) GetMem(sz * sizeof(s[0]));
+        if (!s) { break; }
+        *s = 0;
+        f = p;
+        p = s;
+      }
+    }
+    s = s ? p : s;
+  }
+  return(s);
+}
