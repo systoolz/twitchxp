@@ -1,3 +1,6 @@
+v1.10 [2024.08.05]
+- updated JSON code in playlist request
+
 v1.9 [2024.06.01]
 - dynamic allocated buffers for parser code which fixes playback from application
 - player path escaped with double quotes to allow spaces in the path ("Program Files")

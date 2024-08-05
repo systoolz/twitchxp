@@ -179,7 +179,17 @@ DWORD i;
         // build POST data
         AddSlashes(qry, cid, 1025);
         wsprintfA(did,
-          "{\"operationName\":\"PlaybackAccessToken_Template\",\"query\":\"%s\",\"variables\":{\"isLive\":true,\"login\":\"%s\",\"isVod\":false,\"vodID\":\"\",\"playerType\":\"site\"}}",
+          "{\"operationName\":\"PlaybackAccessToken_Template\","
+          "\"query\":\"%s\","
+          "\"variables\":{"
+            "\"isLive\":true,"
+            "\"login\":\"%s\","
+            "\"isVod\":false,"
+            "\"vodID\":\"\","
+            "\"playerType\":\"site\","
+            "\"platform\":\"web\""
+            "}"
+          "}",
           cid, chn
         );
         s = (CCHAR *) HTTPGetContent("https://gql.twitch.tv/gql", &i, buf, did);
