@@ -1,7 +1,7 @@
 TwitchXP
 (c) SysTools 2018-2024
 http://systools.losthost.org/?misc
-version 1.10
+version 1.11
 
 TwitchXP - Windows XP compatible Twitch.tv streams playlist fetcher.
 This tool will help a lot if you still using Windows XP or old hardware which incapable
@@ -14,16 +14,13 @@ And of course you can still use this tool even under Windows Vista / 7 / 8 / 10 
 You need to know that Twitch.tv uses HLS protocol for streaming:
 https://en.wikipedia.org/wiki/HTTP_Live_Streaming
 Not any video player has HLS support, even less can play it properly and only a few works under Windows XP.
-TwitchXP itself can work even under Windows 98, but you probably didn't find any video player for HLS streams compatible with that system.
+TwitchXP itself can work even under Windows 98, but you probably didn't find any video player for
+HLS streams compatible with that system.
 
-Please note that since October 2019 Twitch.tv updates their HTTPS encryption and you may be unable
-to download playlist under Windows XP or older system anymore. In that case you'll need to download
-and place to the same folder with this tool "ssleay32.dll" and "libeay32.dll" files from OpenSSL.
-As example you can get library files here:
-https://indy.fulgan.com/SSL
-Download something like "openssl-1.0.2u-i386-win32.zip" - you'll need an archive with "win32" in name.
-Note that library files from this link locked on system version 5.x which means you
-can't use them under Windows 98 or older (4.x), because you'll need at least Windows 2000.
+Please note that optional files "ssleay32.dll" and "libeay32.dll" (which coming with the TwitchXP)
+are compiled from OpenSSL 1.0.2u source codes to work under Windows 98, but a CPU with additional
+features like SSE still required. These libraries are optional and used as a fallback for the older
+Windows (9x / 2000 / XP / etc.) where system "WinInet.dll" doesn't support new SSL protocols.
 
 You can test TwitchXP on any always streaming 24/7 channels:
 https://www.twitch.tv/directory/category/always-on
@@ -39,17 +36,18 @@ All software mentioned below are freeware.
 There are at least two HLS-compatible players for Windows XP:
 
 - VLC
-  with GUI, also works under Windows 10
+  with GUI
   https://www.videolan.org/vlc/
 
 - ffplay
-  no GUI (console application), works under Windows XP
+  no GUI (console application)
 
 Most recent ffplay/ffmpeg builds with HLS protocol and Windows XP support available here by Sherpya:
 https://oss.netfarm.it/mplayer/
 
 You need to download and extract "ffplay.exe" from the ffmpeg archive to the same folder with the "TwitchXP.exe" file.
-7-Zip file archiver can be downloaded here if you don't have it or don't have any other archiver already installed with the 7z support:
+7-Zip file archiver can be downloaded here if you don't have it or don't have any other archiver
+already installed with the 7z support:
 http://www.7-zip.org/download.html
 
 Recommended commandline arguments to run ffplay from TwitchXP with "custom player" option:

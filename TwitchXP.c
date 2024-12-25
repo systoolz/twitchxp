@@ -409,8 +409,8 @@ int i;
 static TCHAR stConfig[] = TEXT(
   ".\\TwitchXP.ini\0"
   "main\0"
-  "hidden\0"
   "player\0"
+  "hidden\0"
   "select\0"
   "custom\0"
   "recent\0"

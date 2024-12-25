@@ -1,3 +1,7 @@
+v1.11 [2024.12.25]
+- fixed "player" and "hidden" mixed up ini file parameters
+- added Windows 98 compatible OpenSSL libraries (CPU with SSE still required)
+
 v1.10 [2024.08.05]
 - updated JSON code in playlist request
 
