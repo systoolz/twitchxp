@@ -32,6 +32,13 @@ BYTE *HTTPGetContent(CCHAR *url, DWORD *len, CCHAR *head, CCHAR *data);
 
 void WINAPIV DebugWnd(const TCHAR *fmt, ...);
 
-TCHAR WINAPIV *StrTplFmt(TCHAR *f, ...);
+WCHAR WINAPIV *StrTplFmtW(WCHAR *f, ...);
+CCHAR WINAPIV *StrTplFmtA(CCHAR *f, ...);
+
+#ifdef UNICODE
+#define StrTplFmt StrTplFmtW
+#else
+#define StrTplFmt StrTplFmtA
+#endif
 
 #endif

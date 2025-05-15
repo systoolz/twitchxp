@@ -715,9 +715,9 @@ DWORD i;
 }
 
 // v1.9
-TCHAR WINAPIV *StrTplFmt(TCHAR *f, ...) {
-TCHAR *s, *v, *p;
-DWORD sz, i;
+WCHAR WINAPIV *StrTplFmtW(WCHAR *f, ...) {
+WCHAR *s, *v, *p;
+DWORD sz, i, j, n;
 va_list args;
   s = NULL;
   if (f) {
@@ -726,30 +726,139 @@ va_list args;
       sz = 1;
       va_start(args, f);
       while (*f) {
-        if (*f == 0x01) {
-          v = va_arg(args, TCHAR *);
-          if (v) {
-            while (*v) {
+        do {
+          // string
+          if (*f == 0x01) {
+            v = va_arg(args, WCHAR *);
+            if (v) {
+              while (*v) {
+                if (s) {
+                  *s = *v;
+                  s++;
+                }
+                sz++;
+                v++;
+              }
+            }
+            break;
+          }
+          // number
+          if (*f == 0x02) {
+            // to string
+            n = va_arg(args, DWORD);
+            j = 0;
+            do {
               if (s) {
-                *s = *v;
+                *s = '0' + (n % 10);
                 s++;
               }
+              j++;
               sz++;
-              v++;
+              n /= 10;
+            } while (n);
+            // reverse
+            if (s) {
+              n = j;
+              s -= n;
+              for (j = 0; j < (n / 2); j++) {
+                s[j] ^= s[n - 1 - j];
+                s[n - 1 - j] ^= s[j];
+                s[j] ^= s[n - 1 - j];
+              }
+              s += n;
             }
+            break;
           }
-        } else {
+          // everything else
           if (s) {
             *s = *f;
             s++;
           }
           sz++;
-        }
+        } while (0);
         f++;
       }
       va_end(args);
       if (!i) {
-        s = (TCHAR *) GetMem(sz * sizeof(s[0]));
+        s = (WCHAR *) GetMem(sz * sizeof(s[0]));
+        if (!s) { break; }
+        *s = 0;
+        f = p;
+        p = s;
+      }
+    }
+    s = s ? p : s;
+  }
+  return(s);
+}
+
+// v1.12
+CCHAR WINAPIV *StrTplFmtA(CCHAR *f, ...) {
+CCHAR *s, *v, *p;
+DWORD sz, i, j, n;
+va_list args;
+  s = NULL;
+  if (f) {
+    p = f;
+    for (i = 0; i < 2; i++) {
+      sz = 1;
+      va_start(args, f);
+      while (*f) {
+        do {
+          // string
+          if (*f == 0x01) {
+            v = va_arg(args, CCHAR *);
+            if (v) {
+              while (*v) {
+                if (s) {
+                  *s = *v;
+                  s++;
+                }
+                sz++;
+                v++;
+              }
+            }
+            break;
+          }
+          // number
+          if (*f == 0x02) {
+            // to string
+            n = va_arg(args, DWORD);
+            j = 0;
+            do {
+              if (s) {
+                *s = '0' + (n % 10);
+                s++;
+              }
+              j++;
+              sz++;
+              n /= 10;
+            } while (n);
+            // reverse
+            if (s) {
+              n = j;
+              s -= n;
+              for (j = 0; j < (n / 2); j++) {
+                s[j] ^= s[n - 1 - j];
+                s[n - 1 - j] ^= s[j];
+                s[j] ^= s[n - 1 - j];
+              }
+              s += n;
+            }
+            break;
+          }
+          // everything else
+          if (s) {
+            *s = *f;
+            s++;
+          }
+          sz++;
+        } while (0);
+        f++;
+      }
+      va_end(args);
+      if (!i) {
+        s = (CCHAR *) GetMem(sz * sizeof(s[0]));
         if (!s) { break; }
         *s = 0;
         f = p;

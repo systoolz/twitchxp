@@ -1,7 +1,7 @@
 TwitchXP
-(c) SysTools 2018-2024
+(c) SysTools 2018-2025
 http://systools.losthost.org/?misc
-version 1.11
+version 1.12
 
 TwitchXP - Windows XP compatible Twitch.tv streams playlist fetcher.
 This tool will help a lot if you still using Windows XP or old hardware which incapable

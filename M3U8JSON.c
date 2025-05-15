@@ -1,4 +1,5 @@
 #include "M3U8JSON.h"
+#include "SysToolX.h"
 
 CCHAR *SkipWhiteSpaces(CCHAR *s) {
   if (s) {
@@ -208,11 +209,12 @@ int i;
   return(s);
 }
 
-void JSONParser(CCHAR *s, CCHAR *f, CCHAR *b, DWORD sz) {
+DWORD JSONParser(CCHAR *s, CCHAR *f, CCHAR *b, DWORD sz) {
 BOOL m;
+  if (!b) { sz = 0; }
   // sanity check
-  if (s && f && b && sz) {
-    *b = 0;
+  if (s && f) {
+    if (b) { *b = 0; }
     s = SkipWhiteSpaces(s);
     // check JSON format
     if (*s == '{') {
@@ -233,7 +235,17 @@ BOOL m;
         if (*s != ':') { break; }
         s = SkipWhiteSpaces(&s[1]);
         // get value or skip
-        s = JSONParm(s, m ? b : NULL, m ? sz : 0);
+        if (b) {
+          s = JSONParm(s, m ? b : NULL, m ? sz : 0);
+        } else {
+          b = s;
+          s = JSONParm(s, NULL, 0);
+          if (m) {
+            // TODO: will be a bit larger due to quoted characters
+            sz += (s - b) + 1;
+          }
+          b = NULL;
+        }
         // value found
         if (m) { break; }
         // if not - go to the next name:value pair
@@ -243,13 +255,30 @@ BOOL m;
       }
     }
   }
+  return(sz);
+}
+
+// v1.12
+CCHAR *JSONParserStr(CCHAR *ps, CCHAR *pm) {
+CCHAR *s;
+DWORD l;
+  s = NULL;
+  l = JSONParser(ps, pm, NULL, 0);
+  if (l) {
+    s = (CCHAR *) GetMem(l);
+    if (s) {
+      JSONParser(ps, pm, s, l);
+    }
+  }
+  return(s);
 }
 
 // v1.6
-void GetWildMatch(CCHAR *ps, CCHAR *pm, CCHAR *pv, DWORD sz) {
+DWORD GetWildMatch(CCHAR *ps, CCHAR *pm, CCHAR *pv, DWORD sz) {
 BYTE t[256], w[256], *s, *m, *v;
 DWORD i, j, k;
-  if (ps && pm && pv && sz) {
+  if (!pv) { sz = 0; }
+  if (ps && pm) {
     s = (BYTE *) ps;
     m = (BYTE *) pm;
     v = (BYTE *) pv;
@@ -264,7 +293,7 @@ DWORD i, j, k;
     w[10] = 1;
     w[13] = 1;
     w[32] = 1;
-    *v = 0;
+    if (v) { *v = 0; }
     i = 0;
     j = 0;
     k = 0;
@@ -282,8 +311,13 @@ DWORD i, j, k;
       if (m[i] == '*') {
         i++;
         // copy everything till next mask char or string end
-        while ((s[j]) && ((t[s[j]] != t[m[i]]) || ((w[m[i]]) && (!w[s[j]]))) && (k < sz)) {
-          v[k] = s[j];
+        while ((s[j]) && ((t[s[j]] != t[m[i]]) || ((w[m[i]]) && (!w[s[j]])))) {
+          if (v) {
+            if (k >= sz) { break; }
+            v[k] = s[j];
+          } else {
+            sz = k + 1;
+          }
           k++;
           j++;
         }
@@ -300,7 +334,7 @@ DWORD i, j, k;
         }
         i++;
         // found
-        if ((!m[i]) || (k >= sz)) { break; }
+        if ((!m[i]) || ((v) && (k >= sz))) { break; }
       }
       // compare characters
       while (m[i] && (!w[m[i]]) && (m[i] != '*') && (t[s[j]] == t[m[i]])) {
@@ -322,6 +356,80 @@ DWORD i, j, k;
       }
     }
     // tail zero byte
-    v[(k < sz) ? k : (sz - 1)] = 0;
+    if (v) {
+      v[(k < sz) ? k : (sz - 1)] = 0;
+    } else {
+      sz = k + 1;
+    }
   }
+  return(sz);
+}
+
+// v1.12
+CCHAR *GetWildMatchStr(CCHAR *ps, CCHAR *pm) {
+CCHAR *s;
+DWORD l;
+  s = NULL;
+  l = GetWildMatch(ps, pm, NULL, 0);
+  if (l) {
+    s = (CCHAR *) GetMem(l);
+    if (s) {
+      GetWildMatch(ps, pm, s, l);
+    }
+  }
+  return(s);
+}
+
+DWORD AddSlashes(CCHAR *s, CCHAR *d, DWORD sz) {
+  if (s) {
+    if (!d) { sz = 0; }
+    while (*s && ((d && sz) || (!d))) {
+      if ((*s == '\\') || (*s == '"') || (*s == '\'')) {
+        if (d) {
+          if (sz <= 2) { break; }
+          *d = '\\'; d++; sz--;
+          *d = *s;
+        } else {
+          sz++;
+        }
+      } else {
+        if (d) {
+          *d = *s;
+        } else {
+          sz++;
+        }
+      }
+      if (d) {
+        d++;
+        sz--;
+      } else {
+        sz++;
+      }
+      s++;
+    }
+    if (d) {
+      d -= sz ? 0 : 1;
+      *d = 0;
+    } else {
+      sz++;
+    }
+  } else {
+    sz = 0;
+  }
+  return(sz);
+}
+
+// v1.12
+CCHAR *AddSlashesStr(CCHAR *ps) {
+CCHAR *s;
+DWORD l;
+  s = NULL;
+  l = AddSlashes(ps, NULL, 0);
+  if (l) {
+    s = (CCHAR *) GetMem(l);
+    if (s) {
+      AddSlashes(ps, s, l);
+    }
+  }
+  return(s);
 }

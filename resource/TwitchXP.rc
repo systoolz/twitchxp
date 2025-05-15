@@ -16,8 +16,8 @@ IDI_ICN ICON "TwitchXP.ico"
 #define TOSTRING(x) STRINGIFY(x)
 
 #define VER_MAJOR 1
-#define VER_MINOR 11
-#define LAST_YEAR 2024
+#define VER_MINOR 12
+#define LAST_YEAR 2025
 
 #define R_CAPTION "TwitchXP"
 #define R_VERSION TOSTRING(VER_MAJOR) "." TOSTRING(VER_MINOR)

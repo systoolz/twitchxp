@@ -112,125 +112,129 @@ DWORD i;
   return(s);
 }
 
-void AddSlashes(CCHAR *s, CCHAR *d, DWORD sz) {
-  if (s && d && sz) {
-    while (*s && sz) {
-      if ((*s == '\\') || (*s == '"') || (*s == '\'')) {
-        if (sz <= 2) { break; }
-        *d = '\\'; d++; sz--;
-        *d = *s;
-      } else {
-        *d = *s;
-      }
-      d++;
-      sz--;
-      s++;
-    }
-    d -= sz ? 0 : 1;
-    *d = 0;
-  }
-}
-
 // short and simply to understand code for Twitch.tv protocol can be found here:
 // https://github.com/systoolz/miscsoft/blob/master/twitchtv.php
 // max def stack size: 3984
 CCHAR *TwitchPlayList(TCHAR *name) {
-CCHAR *r, *s, *z, *buf, *cid, *did, *qry, *chn;
+CCHAR *r, *chn, *buf, *s, *cid, *qry, *did;
 DWORD i;
   r = NULL;
-  // sanity check
-  if (name && *name) {
-    // v1.6 new method
-    z = GetMem((1025 * 5) + lstrlen(name));
-    if (z) {
-      buf = &z[1025 * 0];
-      cid = &z[1025 * 1];
-      did = &z[1025 * 2];
-      qry = &z[1025 * 3];
-      chn = &z[1025 * 4];
-      do {
-        // lazy Unicode to ANSI
-        for (i = 0; i < 1025; i++) {
-          chn[i] = name[i];
-          if (!chn[i]) { break; }
-        }
-        chn[1024] = 0;
-        // get clientId
-        wsprintfA(buf, "https://www.twitch.tv/%s", chn);
-        s = (CCHAR *) HTTPGetContent(buf, &i, NULL, NULL);
-        if (!s) {
-          r = (CCHAR *) i; // v1.3
-          break;
-        }
-        GetWildMatch(s, "clientId = \"*\"", cid, 1025);
-        GetWildMatch(s, "var query = '*'", qry, 1025);
-        FreeMem(s);
-        DebugWnd(TEXT("clientId: %hs"), cid);
-        DebugWnd(TEXT("query: %hs"), qry);
-        // build deviceId (anything)
-        for (i = 0; i < 32; i++) {
-          did[i] = (GetTickCount() * i) & 0x0F;
-          did[i] += (did[i] < 10) ? '0' : ('a' - 10);
-          Sleep(1); // update GetTickCount()
-        }
-        did[32] = 0;
-        // build headers
-        wsprintfA(buf, "Client-ID: %s\r\nDevice-ID: %s\r\n", cid, did);
-        // build POST data
-        AddSlashes(qry, cid, 1025);
-        wsprintfA(did,
-          "{\"operationName\":\"PlaybackAccessToken_Template\","
-          "\"query\":\"%s\","
-          "\"variables\":{"
-            "\"isLive\":true,"
-            "\"login\":\"%s\","
-            "\"isVod\":false,"
-            "\"vodID\":\"\","
-            "\"playerType\":\"site\","
-            "\"platform\":\"web\""
-            "}"
-          "}",
-          cid, chn
-        );
-        s = (CCHAR *) HTTPGetContent("https://gql.twitch.tv/gql", &i, buf, did);
-        if (!s) {
-          r = (CCHAR *) i; // v1.3
-          break;
-        }
-        // get signature and token
-        JSONParser(s, "\"data\"", cid, 1025);
-        FreeMem(s);
-        if (!*cid) { break; }
-        DebugWnd(TEXT("data: %hs"), cid);
-        JSONParser(cid, "\"streamPlaybackAccessToken\"", buf, 1025);
-        if (!*buf) { break; }
-        DebugWnd(TEXT("streamPlaybackAccessToken: %hs"), buf);
-        JSONParser(buf, "\"signature\"", cid, 1025);
-        if (!*cid) { break ;}
-        DebugWnd(TEXT("signature: %hs"), cid);
-        JSONParser(buf, "\"value\"", did, 1025);
-        if (!*did) { break ;}
-        DebugWnd(TEXT("value: %hs"), did);
-        // old: usher.twitch.tv
-        wsprintfA(buf,
-          "https://usher.ttvnw.net/api/channel/hls/%s.m3u8?allow_source=true&fast_bread=true&p=%lu&playlist_include_framerate=true&reassignments_supported=true&sig=%s&token=%s",
-          chn,
-          GetTickCount(),
-          cid,
-          did
-        );
-        // get playlist
-        s = (CCHAR *) HTTPGetContent(buf, &i, NULL, NULL);
-        if (!s) {
-          r = (CCHAR *) i; // v1.3
-          break;
-        }
-        r = s;
-      } while (0);
-      // cleanup
-      FreeMem(z);
+  // temporary values
+  chn = NULL;
+  buf = NULL;
+  s = NULL;
+  cid = NULL;
+  qry = NULL;
+  did = NULL;
+  do {
+    // sanity check
+    if ((!name) || (!name[0])) { break; }
+    // lazy Unicode to ANSI
+    i = lstrlen(name);
+    chn = (CCHAR *) GetMem(i + 1);
+    if (!chn) { break; }
+    chn[i] = 0;
+    while (i) {
+      i--;
+      chn[i] = name[i];
     }
-  }
+    buf = StrTplFmtA("https://www.twitch.tv/\x01", chn);
+    if (!buf) { break; }
+    s = (CCHAR *) HTTPGetContent(buf, &i, NULL, NULL);
+    if (!s) {
+      r = (CCHAR *) i; // v1.3
+      break;
+    }
+    cid = GetWildMatchStr(s, "clientId = \"*\"");
+    if (!cid) { break; }
+    qry = GetWildMatchStr(s, "var query = '*'");
+    if (!qry) { break; }
+    DebugWnd(TEXT("clientId: %hs"), cid);
+    DebugWnd(TEXT("query: %hs"), qry);
+    // build deviceId (anything)
+    did = (CCHAR *) GetMem(32 + 1);
+    if (!did) { break; }
+    for (i = 0; i < 32; i++) {
+      did[i] = (GetTickCount() * i) & 0x0F;
+      did[i] += (did[i] < 10) ? '0' : ('a' - 10);
+      Sleep(1); // update GetTickCount()
+    }
+    did[32] = 0;
+    // build headers
+    FreeMem(buf);
+    buf = StrTplFmtA("Client-ID: \x01\r\nDevice-ID: \x01\r\n", cid, did);
+    // build POST data
+    FreeMem(cid);
+    cid = AddSlashesStr(qry);
+    if (!cid) { break; }
+    FreeMem(did);
+    did = StrTplFmtA(
+      "{\"operationName\":\"PlaybackAccessToken_Template\","
+      "\"query\":\"\x01\","
+      "\"variables\":{"
+        "\"isLive\":true,"
+        "\"login\":\"\x01\","
+        "\"isVod\":false,"
+        "\"vodID\":\"\","
+        "\"playerType\":\"site\","
+        "\"platform\":\"web\""
+        "}"
+      "}",
+      cid, chn
+    );
+    if (!did) { break; }
+    FreeMem(s);
+    s = (CCHAR *) HTTPGetContent("https://gql.twitch.tv/gql", &i, buf, did);
+    if (!s) {
+      r = (CCHAR *) i; // v1.3
+      break;
+    }
+    // get signature and token
+    FreeMem(cid);
+    cid = JSONParserStr(s, "\"data\"");
+    if (!cid) { break; }
+    DebugWnd(TEXT("data: %hs"), cid);
+    FreeMem(buf);
+    buf = JSONParserStr(cid, "\"streamPlaybackAccessToken\"");
+    if (!buf) { break; }
+    DebugWnd(TEXT("streamPlaybackAccessToken: %hs"), buf);
+    FreeMem(cid);
+    cid = JSONParserStr(buf, "\"signature\"");
+    if (!cid) { break; }
+    DebugWnd(TEXT("signature: %hs"), cid);
+    FreeMem(did);
+    did = JSONParserStr(buf, "\"value\"");
+    if (!did) { break ;}
+    DebugWnd(TEXT("value: %hs"), did);
+    // old: usher.twitch.tv
+    FreeMem(buf);
+    buf = StrTplFmtA(
+      "https://usher.ttvnw.net/api/channel/hls/\x01.m3u8"
+      "?allow_source=true&fast_bread=true&p=\x02"
+      "&playlist_include_framerate=true&reassignments_supported=true&sig=\x01"
+      "&token=\x01",
+      chn,
+      GetTickCount(),
+      cid,
+      did
+    );
+    if (!buf) { break; }
+    // get playlist
+    FreeMem(s);
+    s = (CCHAR *) HTTPGetContent(buf, &i, NULL, NULL);
+    if (!s) {
+      r = (CCHAR *) i; // v1.3
+      break;
+    }
+    r = s;
+  } while (0);
+  // cleanup
+  if (did) { FreeMem(did); }
+  if (qry) { FreeMem(qry); }
+  if (cid) { FreeMem(cid); }
+  if ((!r) && (s)) { FreeMem(s); }
+  if (buf) { FreeMem(buf); }
+  if (chn) { FreeMem(chn); }
   return(r);
 }
 
