@@ -5,13 +5,13 @@
 
 #pragma pack(push, 1)
 typedef struct {
-  TCHAR *filename;
-  TCHAR *section;
-  TCHAR *current;
+  const TCHAR *filename;
+  const TCHAR *section;
+  const TCHAR *current;
 } ini_data;
 #pragma pack(pop)
 
-void IniInit(ini_data *id, TCHAR *s);
+void IniInit(ini_data *id, const TCHAR *s);
 int IniGetInt(ini_data *id);
 TCHAR *IniGetStr(ini_data *id);
 void IniPutStr(ini_data *id, TCHAR *value);

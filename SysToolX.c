@@ -285,7 +285,7 @@ typedef struct {
 } ssl_func;
 #pragma pack(pop)
 
-static ssl_func ssl_list[] = {
+const static ssl_func ssl_list[] = {
   {"SSL_library_init",      (DWORD *) &SSL_library_init},
   {"SSLv23_client_method",  (DWORD *) &SSLv23_client_method},
   {"SSL_CTX_new",           (DWORD *) &SSL_CTX_new},

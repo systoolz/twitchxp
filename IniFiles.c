@@ -1,6 +1,6 @@
 #include "IniFiles.h"
 
-void IniInit(ini_data *id, TCHAR *s) { 
+void IniInit(ini_data *id, const TCHAR *s) {
   if (id && s) {
     ZeroMemory(id, sizeof(id[0]));
     id->filename = s;

@@ -410,7 +410,7 @@ int i;
   }
 }
 
-static TCHAR stConfig[] = TEXT(
+const static TCHAR stConfig[] = TEXT(
   ".\\TwitchXP.ini\0"
   "main\0"
   "player\0"
@@ -548,7 +548,7 @@ HWND wh;
 }
 
 // v1.2
-void ItemsState(HWND wnd, WORD *items, BOOL state) {
+void ItemsState(HWND wnd, const WORD *items, BOOL state) {
   if (items) {
     for (; *items; items++) {
       DialogEnableWindow(wnd, *items, state);
@@ -557,8 +557,8 @@ void ItemsState(HWND wnd, WORD *items, BOOL state) {
 }
 
 // v1.2
-static WORD MainItems[4] = {IDC_QUALITY, IDC_PLAY_IT, IDC_SAVE_IT, 0};
-static WORD PlayItems[4] = {IDC_PL_LINE, IDC_PL_BRWS, IDC_PL_HIDE, 0};
+const static WORD MainItems[] = {IDC_QUALITY, IDC_PLAY_IT, IDC_SAVE_IT, 0};
+const static WORD PlayItems[] = {IDC_PL_LINE, IDC_PL_BRWS, IDC_PL_HIDE, 0};
 
 BOOL CALLBACK DlgPrc(HWND wnd, UINT msg, WPARAM wparm, LPARAM lparm) {
 DRAWITEMSTRUCT *dis;
